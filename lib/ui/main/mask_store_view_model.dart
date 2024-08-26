@@ -11,7 +11,9 @@ class MaskStoreViewModel extends ChangeNotifier {
     required MaskStoreRepository maskStoreRepository,
     required MyLocationRepository myLocationRepository,
   })  : _maskStoreRepository = maskStoreRepository,
-        _myLocationRepository = myLocationRepository;
+        _myLocationRepository = myLocationRepository {
+    fetchStores();
+  }
 
   // 변수 상태 관리
   List<MaskStore> _stores = [];
