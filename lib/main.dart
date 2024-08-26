@@ -3,6 +3,7 @@ import 'package:mask_store/data/repository/mock_mask_store_repository.dart';
 import 'package:mask_store/data/repository/mock_my_location_repository.dart';
 import 'package:mask_store/ui/main/mask_store_screen.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,10 +21,12 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: MaskStoreScreen(
-        maskStoreViewModel: MaskStoreViewModel(
+      home: ChangeNotifierProvider(
+        create: (_) => MaskStoreViewModel(
             maskStoreRepository: MockMaskStoreRepository(),
             myLocationRepository: MockMyLocationRepository()),
+
+        child: MaskStoreScreen(),
       ),
     );
   }
