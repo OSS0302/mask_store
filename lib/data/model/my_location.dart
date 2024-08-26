@@ -1,10 +1,10 @@
- class MaskStoreLocation {
-  // 위도
+ class MyLocation {
+  // 내 위치 위도
   final double latitude;
-  // 경도
+  // 내 위치 경도
   final double longitude;
 
-  const MaskStoreLocation({
+  const MyLocation({
     required this.latitude,
     required this.longitude,
   });
