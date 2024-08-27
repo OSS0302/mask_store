@@ -1,5 +1,5 @@
 import 'package:mask_store/data/model/my_location.dart';
-import 'package:mask_store/data/repository/mask_store_location_repository.dart';
+import 'package:mask_store/data/repository/my_location_repository.dart';
 
 class MockMyLocationRepository implements MyLocationRepository {
   @override

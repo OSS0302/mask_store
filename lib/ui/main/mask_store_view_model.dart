@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_store/data/model/mask_store.dart';
-import 'package:mask_store/data/repository/mask_store_location_repository.dart';
+import 'package:mask_store/data/repository/my_location_repository.dart';
 import 'package:mask_store/data/repository/mask_store_repository.dart';
 
 class MaskStoreViewModel extends ChangeNotifier {
