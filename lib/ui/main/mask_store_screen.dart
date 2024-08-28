@@ -11,13 +11,27 @@ class MaskStoreScreen extends StatelessWidget {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
         title: Text('마스크 재고 있는 약국 ${maskStoreViewModel.stores.length}곳 '),
       ),
-      body: ListView(
-        children: maskStoreViewModel.stores
-            .map((store) => StoreItem(maskStore: store))
-            .toList(),
+      body: SafeArea(
+        child: maskStoreViewModel.isLoading
+            ? Center(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    Text('로딩 중 입니다 잠시만 기다려 주세요'),
+                  ],
+                ),
+              )
+            : ListView(
+                children: maskStoreViewModel.stores
+                    .map((store) => StoreItem(maskStore: store))
+                    .toList(),
+              ),
       ),
-     );
+    );
   }
 }
