@@ -24,6 +24,10 @@ class MaskStoreViewModel extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
 
+  Future<void> refreshStores() async {
+    await fetchStores();
+  }
+
   Future<void> fetchStores() async {
     _isLoading = true;
     notifyListeners();

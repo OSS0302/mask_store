@@ -26,10 +26,13 @@ class MaskStoreScreen extends StatelessWidget {
                   ],
                 ),
               )
-            : ListView(
-                children: maskStoreViewModel.stores
-                    .map((store) => StoreItem(maskStore: store))
-                    .toList(),
+            : RefreshIndicator(
+                onRefresh: maskStoreViewModel.refreshStores, // 아래로 당길 때 호출되는 메서드
+                child: ListView(
+                  children: maskStoreViewModel.stores
+                      .map((store) => StoreItem(maskStore: store))
+                      .toList(),
+                ),
               ),
       ),
     );
