@@ -9,7 +9,6 @@ class MaskStoreRepositoryImpl implements MaskStoreRepository {
   @override
   Future<List<MaskStore>> getStoreInfo() async{
     final api = await _api.getStores();
-
     return api;
   }
 }

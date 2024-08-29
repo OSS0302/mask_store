@@ -9,10 +9,15 @@ class MaskStoreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: Text('마스크 재고 있는 약국 ${maskStoreViewModel.stores.length}곳 '),
+        title: Column(
+          children: [
+            Text('마스크 재고 있는 약국 ${maskStoreViewModel.stores.length}곳 '),
+          ],
+        ),
       ),
       body: SafeArea(
         child: maskStoreViewModel.isLoading
@@ -27,13 +32,24 @@ class MaskStoreScreen extends StatelessWidget {
                 ),
               )
             : RefreshIndicator(
-                onRefresh: maskStoreViewModel.refreshStores, // 아래로 당길 때 호출되는 메서드
+                onRefresh: maskStoreViewModel.refreshStores,
                 child: ListView(
+                  controller: maskStoreViewModel.scrollController,
                   children: maskStoreViewModel.stores
                       .map((store) => StoreItem(maskStore: store))
                       .toList(),
                 ),
               ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          maskStoreViewModel.scrollController.animateTo(
+            0.0,
+            duration: Duration(seconds: 1),
+            curve: Curves.easeInOut,
+          );
+        },
+        child: Icon(Icons.arrow_upward),
       ),
     );
   }

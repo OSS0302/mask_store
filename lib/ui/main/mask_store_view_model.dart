@@ -6,6 +6,7 @@ import 'package:mask_store/data/repository/mask_store_repository.dart';
 class MaskStoreViewModel extends ChangeNotifier {
   final MaskStoreRepository _maskStoreRepository;
   final MyLocationRepository _myLocationRepository;
+  final ScrollController scrollController = ScrollController();
 
   MaskStoreViewModel({
     required MaskStoreRepository maskStoreRepository,

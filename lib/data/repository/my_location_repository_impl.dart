@@ -7,7 +7,7 @@ class MyLocationRepositoryImpl implements MyLocationRepository {
   @override
   double distanceBetween(
           double startLat, double startLng, double endLat, double endLng) =>
-      Geolocator.distanceBetween(startLat, startLng, endLat, endLng).truncateToDouble();
+      Geolocator.distanceBetween(startLat, startLng, endLat, endLng).ceilToDouble();
 
   @override
   Future<MyLocation> getMyLocation() async {
