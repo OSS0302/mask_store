@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mask_store/data/repository/mock_mask_store_repository_impl.dart';
-import 'package:mask_store/data/repository/mock_my_location_repository_impl.dart';
+import 'package:mask_store/di/di_setup.dart';
 import 'package:mask_store/ui/main/mask_store_screen.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +8,7 @@ import 'data/repository/mask_store_repository_impl.dart';
 import 'data/repository/my_location_repository_impl.dart';
 
 void main() {
+  diSetup();
   runApp(const MyApp());
 }
 
