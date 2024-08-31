@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_store/di/di_setup.dart';
+import 'package:mask_store/routes.dart';
 import 'package:mask_store/ui/main/mask_store_screen.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
@@ -18,19 +19,14 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
+      routerConfig: router,
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: ChangeNotifierProvider(
-        create: (_) => MaskStoreViewModel(
-            maskStoreRepository: MaskStoreRepositoryImpl(),
-            myLocationRepository: MyLocationRepositoryImpl()),
 
-        child: MaskStoreScreen(),
-      ),
     );
   }
 }
