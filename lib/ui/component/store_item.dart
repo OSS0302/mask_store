@@ -44,7 +44,7 @@ class StoreItem extends StatelessWidget {
       case 'few':
         remainState = '부족';
         description = '2개 ~ 30개';
-        color = Colors.black;
+        color = Colors.grey;
 
       case 'empty':
         remainState = '매진 임박';

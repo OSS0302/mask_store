@@ -9,19 +9,19 @@ class MaskStoreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
-
+    final state = maskStoreViewModel.state;
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
         title: Column(
           children: [
-            Text('마스크 재고 있는 약국 ${maskStoreViewModel.stores.length}곳 '),
+            Text('마스크 재고 있는 약국 ${state.stores.length}곳 '),
           ],
         ),
       ),
       body: SafeArea(
-        child: maskStoreViewModel.isLoading
-            ? Center(
+        child: state.isLoading
+            ? const Center(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -35,7 +35,7 @@ class MaskStoreScreen extends StatelessWidget {
                 onRefresh: maskStoreViewModel.refreshStores,
                 child: ListView(
                   controller: maskStoreViewModel.scrollController,
-                  children: maskStoreViewModel.stores
+                  children: state.stores
                       .map((store) => StoreItem(maskStore: store))
                       .toList(),
                 ),
@@ -45,11 +45,11 @@ class MaskStoreScreen extends StatelessWidget {
         onPressed: () {
           maskStoreViewModel.scrollController.animateTo(
             0.0,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
             curve: Curves.easeInOut,
           );
         },
-        child: Icon(Icons.arrow_upward),
+        child: const Icon(Icons.arrow_upward),
       ),
     );
   }
