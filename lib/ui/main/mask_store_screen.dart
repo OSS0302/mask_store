@@ -9,47 +9,57 @@ class MaskStoreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
-    final state = maskStoreViewModel.state;
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: Column(
-          children: [
-            Text('마스크 재고 있는 약국 ${state.stores.length}곳 '),
-          ],
-        ),
+        title: Text('마스크 재고 있는 약국 ${maskStoreViewModel.state.stores.length}곳 '),
       ),
       body: SafeArea(
-        child: state.isLoading
-            ? const Center(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    Text('로딩 중 입니다 잠시만 기다려 주세요'),
-                  ],
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: maskStoreViewModel.refreshStores,
-                child: ListView(
-                  controller: maskStoreViewModel.scrollController,
-                  children: state.stores
-                      .map((store) => StoreItem(maskStore: store))
-                      .toList(),
+        child: maskStoreViewModel.state.isLoading
+            ? Center(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              Text('로딩 중 입니다 잠시만 기다려 주세요'),
+            ],
+          ),
+        )
+            : Column(
+          children: [
+            // 검색 입력 필드를 바디에 추가
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: TextField(
+                onChanged: (value) {
+                  maskStoreViewModel.filterStores(value); // 검색어에 따라 필터링
+                },
+                decoration: InputDecoration(
+                  hintText: '약국 이름 검색',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: Icon(Icons.search),
                 ),
               ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          maskStoreViewModel.scrollController.animateTo(
-            0.0,
-            duration: const Duration(seconds: 1),
-            curve: Curves.easeInOut,
-          );
-        },
-        child: const Icon(Icons.arrow_upward),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: maskStoreViewModel.refreshStores, // 아래로 당길 때 호출되는 메서드
+                child: ListView.builder(
+                  controller: maskStoreViewModel.scrollController,
+                  itemCount: maskStoreViewModel.state.stores.length,
+                  itemBuilder: (context, index) {
+                    final store = maskStoreViewModel.state.stores[index];
+                    return StoreItem(maskStore: store);
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
