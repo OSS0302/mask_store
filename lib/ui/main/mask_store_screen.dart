@@ -14,7 +14,16 @@ class MaskStoreScreen extends StatelessWidget {
       appBar: AppBar(
         elevation: 0,
         title: Text('마스크 재고 있는 약국 ${maskStoreViewModel.state.stores.length}곳 '),
+        actions: [
+          Switch(
+            value: maskStoreViewModel.isDarkMode, // 현재 다크 모드 상태
+            onChanged: (value) {
+              maskStoreViewModel.toggleDarkMode(); // 다크 모드 토글
+            },
+          ),
+        ],
       ),
+
       body: SafeArea(
         child: maskStoreViewModel.state.isLoading
             ? Center(

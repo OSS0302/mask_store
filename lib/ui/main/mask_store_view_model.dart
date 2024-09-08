@@ -9,6 +9,15 @@ class MaskStoreViewModel extends ChangeNotifier {
   final MyLocationRepository _myLocationRepository;
   final ScrollController scrollController = ScrollController();
 
+  bool _isDarkMode = false; // 다크 모드 기본 값 설정
+
+  bool get isDarkMode => _isDarkMode;
+
+  void toggleDarkMode() {
+    _isDarkMode = !_isDarkMode; // 다크 모드 상태 변경
+    notifyListeners(); // UI 업데이트를 위한 알림
+  }
+
   MaskStoreViewModel({
     required MaskStoreRepository maskStoreRepository,
     required MyLocationRepository myLocationRepository,
