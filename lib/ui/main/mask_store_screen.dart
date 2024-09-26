@@ -13,32 +13,42 @@ class MaskStoreScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: Text('마스크 재고 있는 약국 ${maskStoreViewModel.state.stores.length}곳 '),
+        title: Text(
+          '마스크 재고 있는 약국 ${maskStoreViewModel.state.stores.length}곳',
+          style: const TextStyle(
+            fontSize: 20, // 폰트 크기 조정
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.teal, // AppBar 색상 변경
         actions: [
           Switch(
             value: maskStoreViewModel.isDarkMode, // 현재 다크 모드 상태
             onChanged: (value) {
               maskStoreViewModel.toggleDarkMode(); // 다크 모드 토글
             },
+            activeColor: Colors.white,
           ),
         ],
       ),
-
       body: SafeArea(
         child: maskStoreViewModel.state.isLoading
             ? Center(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+            children: const [
               CircularProgressIndicator(),
-              Text('로딩 중 입니다 잠시만 기다려 주세요'),
+              SizedBox(height: 16),
+              Text(
+                '로딩 중 입니다 잠시만 기다려 주세요',
+                style: TextStyle(fontSize: 16), // 텍스트 크기 조정
+              ),
             ],
           ),
         )
             : Column(
           children: [
-            // 검색 입력 필드를 바디에 추가
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: TextField(
@@ -50,19 +60,27 @@ class MaskStoreScreen extends StatelessWidget {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  prefixIcon: Icon(Icons.search),
+                  suffixIcon: const Icon(Icons.search),
                 ),
               ),
             ),
+            const Divider(
+              height: 1,
+              thickness: 1,
+              color: Colors.grey, // 구분선 색상
+            ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: maskStoreViewModel.refreshStores, // 아래로 당길 때 호출되는 메서드
+                onRefresh: maskStoreViewModel.refreshStores,
                 child: ListView.builder(
                   controller: maskStoreViewModel.scrollController,
                   itemCount: maskStoreViewModel.state.stores.length,
                   itemBuilder: (context, index) {
                     final store = maskStoreViewModel.state.stores[index];
-                    return StoreItem(maskStore: store);
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: StoreItem(maskStore: store), // 약국 아이템 위젯
+                    );
                   },
                 ),
               ),
