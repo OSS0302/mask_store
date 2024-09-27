@@ -16,18 +16,20 @@ class MaskStoreScreen extends StatelessWidget {
         title: Text(
           '마스크 재고 있는 약국 ${maskStoreViewModel.state.stores.length}곳',
           style: const TextStyle(
-            fontSize: 20, // 폰트 크기 조정
+            fontSize: 22,
             fontWeight: FontWeight.bold,
+            color: Colors.white, // 글자 색상 통일
           ),
         ),
-        backgroundColor: Colors.teal, // AppBar 색상 변경
+        backgroundColor: Colors.teal, // AppBar 색상
         actions: [
-          Switch(
-            value: maskStoreViewModel.isDarkMode, // 현재 다크 모드 상태
-            onChanged: (value) {
-              maskStoreViewModel.toggleDarkMode(); // 다크 모드 토글
+          IconButton(
+            icon: Icon(maskStoreViewModel.isDarkMode
+                ? Icons.nightlight_round
+                : Icons.wb_sunny),
+            onPressed: () {
+              maskStoreViewModel.toggleDarkMode();
             },
-            activeColor: Colors.white,
           ),
         ],
       ),
@@ -35,14 +37,15 @@ class MaskStoreScreen extends StatelessWidget {
         child: maskStoreViewModel.state.isLoading
             ? Center(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text(
-                '로딩 중 입니다 잠시만 기다려 주세요',
-                style: TextStyle(fontSize: 16), // 텍스트 크기 조정
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.teal), // 로딩 색상 변경
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '로딩 중입니다. 잠시만 기다려 주세요.',
+                style: TextStyle(fontSize: 18, color: Colors.black54), // 텍스트 스타일 개선
               ),
             ],
           ),
@@ -53,25 +56,30 @@ class MaskStoreScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: TextField(
                 onChanged: (value) {
-                  maskStoreViewModel.filterStores(value); // 검색어에 따라 필터링
+                  maskStoreViewModel.filterStores(value);
                 },
                 decoration: InputDecoration(
-                  hintText: '약국 이름 검색',
+                  hintText: '약국 이름을 입력하세요',
+                  hintStyle: const TextStyle(color: Colors.grey), // 힌트 텍스트 색상
+                  filled: true,
+                  fillColor: Colors.grey.shade200,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
                   ),
-                  suffixIcon: const Icon(Icons.search),
+                  prefixIcon: const Icon(Icons.search, color: Colors.teal), // 아이콘 색상
                 ),
               ),
             ),
             const Divider(
               height: 1,
               thickness: 1,
-              color: Colors.grey, // 구분선 색상
+              color: Colors.grey,
             ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: maskStoreViewModel.refreshStores,
+                color: Colors.teal, // 리프레시 색상 변경
                 child: ListView.builder(
                   controller: maskStoreViewModel.scrollController,
                   itemCount: maskStoreViewModel.state.stores.length,
@@ -79,7 +87,14 @@ class MaskStoreScreen extends StatelessWidget {
                     final store = maskStoreViewModel.state.stores[index];
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: StoreItem(maskStore: store), // 약국 아이템 위젯
+                      child: Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15), // 카드의 둥근 모서리
+                        ),
+                        elevation: 5,
+                        shadowColor: Colors.grey.withOpacity(0.2),
+                        child: StoreItem(maskStore: store), // 약국 아이템 위젯
+                      ),
                     );
                   },
                 ),
