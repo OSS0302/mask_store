@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:mask_store/ui/main/main_screen.dart';
 import 'package:mask_store/ui/main/mask_store_screen.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +12,7 @@ final router = GoRouter(
       path: '/',
       builder: (context, state) => ChangeNotifierProvider(
         create: (_) => getIt<MaskStoreViewModel>(),
-        child: MaskStoreScreen(),
+        child: const MainScreen(),
       ),
     ),
   ],

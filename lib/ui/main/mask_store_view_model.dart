@@ -40,6 +40,8 @@ class MaskStoreViewModel extends ChangeNotifier {
     await fetchStores();
   }
 
+
+
   Future<void> fetchStores() async {
     _state = state.copyWith(isLoading: true);
     notifyListeners();
@@ -82,4 +84,22 @@ class MaskStoreViewModel extends ChangeNotifier {
       return store.storeName.toLowerCase().contains(query.toLowerCase());
     }).toList();
   }
+
+  // 알림 설정 상태 가져오기
+  bool get isNotificationsEnabled => _state.isNotificationsEnabled;
+
+  // 알림 설정 토글 메소드 추가
+  void toggleNotifications() {
+    _state = _state.copyWith(
+      isNotificationsEnabled: !_state.isNotificationsEnabled,
+    );
+    notifyListeners();
+  }
+
+  // 언어 변경 메소드 추가
+  void changeLanguage(String newLanguage) {
+    _state = _state.copyWith(currentLanguage: newLanguage);
+    notifyListeners();
+  }
 }
+
