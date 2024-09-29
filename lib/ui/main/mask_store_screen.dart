@@ -80,7 +80,15 @@ class MaskStoreScreen extends StatelessWidget {
                     final store = maskStoreViewModel.state.stores[index];
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: StoreItem(maskStore: store), // 약국 아이템 위젯
+                      // 약국 아이템 위젯
+                      child: Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15), // 카드의 둥근 모서리
+                        ),
+                        elevation: 5,
+                        shadowColor: Colors.grey.withOpacity(0.2),
+                        child: StoreItem(maskStore: store), // 약국 아이템 위젯
+                      ),
                     );
                   },
                 ),

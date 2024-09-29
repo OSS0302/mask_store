@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:mask_store/main.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
@@ -14,7 +20,7 @@ class SettingsScreen extends StatelessWidget {
         title: const Text('설정'),
         backgroundColor: Colors.teal,
       ),
-      body: ListView(
+      body:  ListView(
         children: [
           ListTile(
             leading: const Icon(Icons.dark_mode),
@@ -22,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
             trailing: Switch(
               value: maskStoreViewModel.isDarkMode,
               onChanged: (value) {
-                maskStoreViewModel.toggleDarkMode(); // 다크 모드 전환
+                maskStoreViewModel.toggleDarkMode(); // 다크 모드 토글
               },
             ),
           ),
