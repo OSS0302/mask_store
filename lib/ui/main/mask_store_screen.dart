@@ -22,15 +22,7 @@ class MaskStoreScreen extends StatelessWidget {
           ),
         ),
         backgroundColor: Colors.teal, // AppBar 색상 변경
-        actions: [
-          Switch(
-            value: maskStoreViewModel.isDarkMode, // 현재 다크 모드 상태
-            onChanged: (value) {
-              maskStoreViewModel.toggleDarkMode(); // 다크 모드 토글
-            },
-            activeColor: Colors.white,
-          ),
-        ],
+
       ),
       body: SafeArea(
         child: maskStoreViewModel.state.isLoading
