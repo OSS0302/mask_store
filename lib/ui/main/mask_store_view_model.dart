@@ -101,5 +101,12 @@ class MaskStoreViewModel extends ChangeNotifier {
     _state = _state.copyWith(currentLanguage: newLanguage);
     notifyListeners();
   }
+
+  // 즐겨찾기 토글 메서드
+  void toggleFavorite(MaskStore store) {
+    store.toggleFavorite();
+    notifyListeners(); // UI에 변경 사항 반영
+  }
 }
+
 
