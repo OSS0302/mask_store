@@ -15,37 +15,30 @@ class StoreItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.read<MaskStoreViewModel>();
 
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStoreInfo(),
-            const Divider(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _RemainStateWidget(),
-                IconButton(
-                  icon: Icon(
-                    maskStore.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: maskStore.isFavorite ? Colors.red : Colors.grey,
-                    size: 28,
-                  ),
-                  onPressed: () {
-                    maskStoreViewModel.toggleFavorite(maskStore);
-                  },
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildStoreInfo(),
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _RemainStateWidget(),
+              IconButton(
+                icon: Icon(
+                  maskStore.isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: maskStore.isFavorite ? Colors.red : Colors.grey,
+                  size: 28,
                 ),
-              ],
-            ),
-          ],
-        ),
+                onPressed: () {
+                  maskStoreViewModel.toggleFavorite(maskStore);
+                },
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
