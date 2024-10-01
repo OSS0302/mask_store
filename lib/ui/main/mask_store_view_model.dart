@@ -9,14 +9,19 @@ class MaskStoreViewModel extends ChangeNotifier {
   final MyLocationRepository _myLocationRepository;
   final ScrollController scrollController = ScrollController();
 
-  bool _isDarkMode = false; // 다크 모드 기본 값 설정
-
+  // 다크 모드 상태
+  bool _isDarkMode = false;
   bool get isDarkMode => _isDarkMode;
 
-  void toggleDarkMode() {
-    _isDarkMode = !_isDarkMode; // 다크 모드 상태 변경
-    notifyListeners(); // UI 업데이트를 위한 알림
-  }
+  // 알림 설정 상태
+  bool _isNotificationsEnabled = false;
+  bool get isNotificationsEnabled => _isNotificationsEnabled;
+
+  // 언어 설정 상태
+  String _currentLanguage = '한국어';
+  String get currentLanguage => _currentLanguage;
+
+
 
   MaskStoreViewModel({
     required MaskStoreRepository maskStoreRepository,
@@ -85,20 +90,21 @@ class MaskStoreViewModel extends ChangeNotifier {
     }).toList();
   }
 
-  // 알림 설정 상태 가져오기
-  bool get isNotificationsEnabled => _state.isNotificationsEnabled;
-
-  // 알림 설정 토글 메소드 추가
-  void toggleNotifications() {
-    _state = _state.copyWith(
-      isNotificationsEnabled: !_state.isNotificationsEnabled,
-    );
+  // 다크 모드 토글
+  void toggleDarkMode() {
+    _isDarkMode = !_isDarkMode;
     notifyListeners();
   }
 
-  // 언어 변경 메소드 추가
-  void changeLanguage(String newLanguage) {
-    _state = _state.copyWith(currentLanguage: newLanguage);
+  // 알림 설정 토글
+  void toggleNotifications() {
+    _isNotificationsEnabled = !_isNotificationsEnabled;
+    notifyListeners();
+  }
+
+  // 언어 변경
+  void changeLanguage(String language) {
+    _currentLanguage = language;
     notifyListeners();
   }
 
