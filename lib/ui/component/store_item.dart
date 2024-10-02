@@ -66,7 +66,7 @@ class StoreItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '${maskStore.distance} km',
-          style: const TextStyle(fontSize: 14, color: Colors.black54),
+          style: const TextStyle(fontSize: 14, color: Colors.teal),
         ),
       ],
     );
