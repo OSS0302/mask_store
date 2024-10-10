@@ -21,8 +21,6 @@ class MaskStoreViewModel extends ChangeNotifier {
   String _currentLanguage = '한국어';
   String get currentLanguage => _currentLanguage;
 
-
-
   MaskStoreViewModel({
     required MaskStoreRepository maskStoreRepository,
     required MyLocationRepository myLocationRepository,
@@ -44,8 +42,6 @@ class MaskStoreViewModel extends ChangeNotifier {
   Future<void> refreshStores() async {
     await fetchStores();
   }
-
-
 
   Future<void> fetchStores() async {
     _state = state.copyWith(isLoading: true);
@@ -113,6 +109,20 @@ class MaskStoreViewModel extends ChangeNotifier {
     store.toggleFavorite();
     notifyListeners(); // UI에 변경 사항 반영
   }
+
+  // 거리순 정렬
+  void sortByDistance() {
+    _state = state.copyWith(
+      stores: List.from(_state.stores)..sort((a, b) => a.distance.compareTo(b.distance)),
+    );
+    notifyListeners();
+  }
+
+  // 재고순 정렬
+  void sortByStock() {
+    _state = state.copyWith(
+      stores: List.from(_state.stores)..sort((a, b) => b.remainStatus.compareTo(a.remainStatus)),
+    );
+    notifyListeners();
+  }
 }
-
-

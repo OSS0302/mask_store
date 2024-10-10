@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
-
 import '../component/store_item.dart';
 
 class MaskStoreScreen extends StatelessWidget {
@@ -17,12 +16,20 @@ class MaskStoreScreen extends StatelessWidget {
         title: Text(
           '마스크 재고 있는 약국 ${maskStoreViewModel.state.stores.length}곳',
           style: const TextStyle(
-            fontSize: 20, // 폰트 크기 조정
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.teal, // AppBar 색상 변경
-
+        backgroundColor: Colors.teal,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.map),
+            onPressed: () {
+              // 지도 화면으로 이동
+              Navigator.push(context, MaterialPageRoute(builder: (_) => MapViewScreen()));
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: maskStoreViewModel.state.isLoading
@@ -35,7 +42,7 @@ class MaskStoreScreen extends StatelessWidget {
               SizedBox(height: 16),
               Text(
                 '로딩 중 입니다 잠시만 기다려 주세요',
-                style: TextStyle(fontSize: 16), // 텍스트 크기 조정
+                style: TextStyle(fontSize: 16),
               ),
             ],
           ),
@@ -44,26 +51,42 @@ class MaskStoreScreen extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: TextField(
-                onChanged: (value) {
-                  maskStoreViewModel.filterStores(value); // 검색어에 따라 필터링
-                },
-                decoration: InputDecoration(
-                  hintText: '약국 이름 검색',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      onChanged: (value) {
+                        maskStoreViewModel.filterStores(value);
+                      },
+                      decoration: InputDecoration(
+                        hintText: '약국 이름 검색',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        suffixIcon: const Icon(Icons.search),
+                      ),
+                    ),
                   ),
-                  suffixIcon: const Icon(Icons.search),
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.filter_alt),
+                    onPressed: () {
+                      // 정렬/필터 다이얼로그 열기
+                      showSortFilterDialog(context, maskStoreViewModel);
+                    },
+                  ),
+                ],
               ),
             ),
-            const Divider(
-              height: 1,
-              thickness: 1,
-              color: Colors.grey, // 구분선 색상
-            ),
+            const Divider(height: 1, thickness: 1, color: Colors.grey),
             Expanded(
-              child: RefreshIndicator(
+              child: maskStoreViewModel.state.stores.isEmpty
+                  ? Center(
+                child: Text(
+                  '검색 결과가 없습니다.',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
+                  : RefreshIndicator(
                 onRefresh: maskStoreViewModel.refreshStores,
                 child: ListView.builder(
                   controller: maskStoreViewModel.scrollController,
@@ -72,14 +95,13 @@ class MaskStoreScreen extends StatelessWidget {
                     final store = maskStoreViewModel.state.stores[index];
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      // 약국 아이템 위젯
                       child: Card(
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15), // 카드의 둥근 모서리
+                          borderRadius: BorderRadius.circular(15),
                         ),
                         elevation: 5,
                         shadowColor: Colors.grey.withOpacity(0.2),
-                        child: StoreItem(maskStore: store), // 약국 아이템 위젯
+                        child: StoreItem(maskStore: store),
                       ),
                     );
                   },
@@ -88,6 +110,52 @@ class MaskStoreScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void showSortFilterDialog(BuildContext context, MaskStoreViewModel viewModel) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('정렬 및 필터'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('거리 순'),
+                onTap: () {
+                  viewModel.sortByDistance();
+                  Navigator.of(context).pop();
+                },
+              ),
+              ListTile(
+                title: const Text('재고 순'),
+                onTap: () {
+                  viewModel.sortByStock();
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// 지도 화면을 위한 플레이스홀더
+class MapViewScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('주변 약국'),
+        backgroundColor: Colors.teal,
+      ),
+      body: Center(
+        child: Text('지도는 여기에 표시됩니다.'),
       ),
     );
   }
