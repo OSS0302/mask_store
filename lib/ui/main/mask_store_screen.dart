@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mask_store/routes.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
 import '../component/store_item.dart';
+import 'map_view_screen.dart';
 
 class MaskStoreScreen extends StatelessWidget {
   const MaskStoreScreen({super.key});
@@ -26,7 +29,7 @@ class MaskStoreScreen extends StatelessWidget {
             icon: const Icon(Icons.map),
             onPressed: () {
               // 지도 화면으로 이동
-              Navigator.push(context, MaterialPageRoute(builder: (_) => MapViewScreen()));
+              context.push("/first");
             },
           ),
         ],
@@ -145,18 +148,4 @@ class MaskStoreScreen extends StatelessWidget {
   }
 }
 
-// 지도 화면을 위한 플레이스홀더
-class MapViewScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('주변 약국'),
-        backgroundColor: Colors.teal,
-      ),
-      body: Center(
-        child: Text('지도는 여기에 표시됩니다.'),
-      ),
-    );
-  }
-}
+

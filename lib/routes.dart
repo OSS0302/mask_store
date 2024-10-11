@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:mask_store/ui/main/main_screen.dart';
+import 'package:mask_store/ui/main/map_view_screen.dart';
 import 'package:mask_store/ui/main/mask_store_screen.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +15,10 @@ final router = GoRouter(
         create: (_) => getIt<MaskStoreViewModel>(),
         child: const MainScreen(),
       ),
+    ),
+    GoRoute(
+      path: '/mapViewScreen',
+      builder: (context, state) => MapViewScreen(),
     ),
   ],
 );
