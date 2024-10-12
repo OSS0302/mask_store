@@ -29,7 +29,7 @@ class MaskStoreScreen extends StatelessWidget {
             icon: const Icon(Icons.map),
             onPressed: () {
               // 지도 화면으로 이동
-              context.push("/first");
+              context.push("/mapViewScreen");
             },
           ),
         ],
