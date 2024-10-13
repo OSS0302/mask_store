@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
+
+import '../main/mask_store_view_model.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,7 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('설정', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('설정', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.teal,
         elevation: 0,
       ),
@@ -40,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: const Text('다크 모드', style: TextStyle(fontSize: 18)),
                 trailing: Switch(
                   value: maskStoreViewModel.isDarkMode,
-                  activeColor: Colors.teal, // 스위치 활성 색상
+                  activeColor: Colors.teal,
                   onChanged: (value) {
                     maskStoreViewModel.toggleDarkMode();
                   },
@@ -57,7 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: const Text('알림 설정', style: TextStyle(fontSize: 18)),
                 trailing: Switch(
                   value: maskStoreViewModel.isNotificationsEnabled,
-                  activeColor: Colors.teal, // 스위치 활성 색상
+                  activeColor: Colors.teal,
                   onChanged: (value) {
                     maskStoreViewModel.toggleNotifications();
                   },
@@ -84,7 +86,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 언어 선택 다이얼로그
   void _showLanguageDialog(BuildContext context, MaskStoreViewModel viewModel) {
     showDialog(
       context: context,
@@ -99,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: '한국어',
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
-                    viewModel.changeLanguage(value!); // 언어 변경
+                    viewModel.changeLanguage(value!);
                     Navigator.pop(context);
                   },
                 ),
@@ -117,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           actions: [
             TextButton(
-              child: const Text('닫기'),
+              child: const Text('닫기', style: TextStyle(color: Colors.teal)),
               onPressed: () {
                 Navigator.pop(context);
               },

@@ -21,12 +21,13 @@ class MaskStoreScreen extends StatelessWidget {
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
         backgroundColor: Colors.teal,
         actions: [
           IconButton(
-            icon: const Icon(Icons.map),
+            icon: const Icon(Icons.map, color: Colors.white),
             onPressed: () {
               // 지도 화면으로 이동
               context.push("/mapViewScreen");
@@ -34,84 +35,97 @@ class MaskStoreScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        child: maskStoreViewModel.state.isLoading
-            ? Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text(
-                '로딩 중 입니다 잠시만 기다려 주세요',
-                style: TextStyle(fontSize: 16),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.teal.shade100, Colors.teal.shade50],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: maskStoreViewModel.state.isLoading
+              ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                CircularProgressIndicator(color: Colors.teal),
+                SizedBox(height: 16),
+                Text(
+                  '로딩 중 입니다 잠시만 기다려 주세요',
+                  style: TextStyle(fontSize: 16, color: Colors.teal),
+                ),
+              ],
+            ),
+          )
+              : Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        onChanged: (value) {
+                          maskStoreViewModel.filterStores(value);
+                        },
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: '약국 이름 검색',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          suffixIcon: const Icon(Icons.search, color: Colors.teal),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.filter_alt, color: Colors.teal),
+                      onPressed: () {
+                        // 정렬/필터 다이얼로그 열기
+                        showSortFilterDialog(context, maskStoreViewModel);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, thickness: 1, color: Colors.teal),
+              Expanded(
+                child: maskStoreViewModel.state.stores.isEmpty
+                    ? Center(
+                  child: Text(
+                    '검색 결과가 없습니다.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  ),
+                )
+                    : RefreshIndicator(
+                  onRefresh: maskStoreViewModel.refreshStores,
+                  child: ListView.builder(
+                    controller: maskStoreViewModel.scrollController,
+                    itemCount: maskStoreViewModel.state.stores.length,
+                    itemBuilder: (context, index) {
+                      final store = maskStoreViewModel.state.stores[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          elevation: 5,
+                          shadowColor: Colors.grey.withOpacity(0.2),
+                          child: StoreItem(maskStore: store),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
-        )
-            : Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      onChanged: (value) {
-                        maskStoreViewModel.filterStores(value);
-                      },
-                      decoration: InputDecoration(
-                        hintText: '약국 이름 검색',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        suffixIcon: const Icon(Icons.search),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.filter_alt),
-                    onPressed: () {
-                      // 정렬/필터 다이얼로그 열기
-                      showSortFilterDialog(context, maskStoreViewModel);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, thickness: 1, color: Colors.grey),
-            Expanded(
-              child: maskStoreViewModel.state.stores.isEmpty
-                  ? Center(
-                child: Text(
-                  '검색 결과가 없습니다.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              )
-                  : RefreshIndicator(
-                onRefresh: maskStoreViewModel.refreshStores,
-                child: ListView.builder(
-                  controller: maskStoreViewModel.scrollController,
-                  itemCount: maskStoreViewModel.state.stores.length,
-                  itemBuilder: (context, index) {
-                    final store = maskStoreViewModel.state.stores[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 5,
-                        shadowColor: Colors.grey.withOpacity(0.2),
-                        child: StoreItem(maskStore: store),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -130,14 +144,14 @@ class MaskStoreScreen extends StatelessWidget {
                 title: const Text('거리 순'),
                 onTap: () {
                   viewModel.sortByDistance();
-                  Navigator.of(context).pop();
+                  context.pop();
                 },
               ),
               ListTile(
                 title: const Text('재고 순'),
                 onTap: () {
                   viewModel.sortByStock();
-                  Navigator.of(context).pop();
+                  context.pop();
                 },
               ),
             ],
@@ -147,5 +161,3 @@ class MaskStoreScreen extends StatelessWidget {
     );
   }
 }
-
-
