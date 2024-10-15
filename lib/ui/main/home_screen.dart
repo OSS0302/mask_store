@@ -18,7 +18,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              // 검색 기능을 여기에 추가할 수 있습니다.
+              _showSearchDialog(context); // 검색 다이얼로그 호출
             },
           ),
         ],
@@ -84,5 +84,54 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // 검색 다이얼로그
+  void _showSearchDialog(BuildContext context) {
+    final TextEditingController searchController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('약국 검색'),
+          content: TextField(
+            controller: searchController,
+            decoration: const InputDecoration(
+              hintText: '검색어를 입력하세요',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // 다이얼로그 닫기
+              },
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                final searchTerm = searchController.text;
+                Navigator.of(context).pop(); // 다이얼로그 닫기
+                _performSearch(context, searchTerm); // 검색 실행
+              },
+              child: const Text('검색'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 검색 결과를 처리하는 함수
+  void _performSearch(BuildContext context, String searchTerm) {
+    if (searchTerm.isNotEmpty) {
+      // 검색어를 전달하여 검색 화면으로 이동
+      context.push('/maskStoreScreen?search=$searchTerm');
+    } else {
+      // 검색어가 없을 경우 처리
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('검색어를 입력하세요')),
+      );
+    }
   }
 }
