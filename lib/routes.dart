@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:mask_store/ui/main/favorites_screen.dart';
 import 'package:mask_store/ui/main/home_screen.dart';
 import 'package:mask_store/ui/main/main_screen.dart';
 import 'package:mask_store/ui/main/map_view_screen.dart';
@@ -22,6 +23,10 @@ final router = GoRouter(
     GoRoute(
       path: '/maskStoreScreen',
       builder: (context, state) => const MaskStoreScreen(),
+    ),
+    GoRoute(
+      path: '/favoritesScreen', // 추가된 부분
+      builder: (context, state) => const FavoritesScreen(),
     ),
     GoRoute(
       path: '/settingsScreen',

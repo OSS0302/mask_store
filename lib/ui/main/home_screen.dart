@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'mask_store_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -14,6 +13,7 @@ class HomeScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.teal,
+        elevation: 0, // 앱바 그림자 제거
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -26,7 +26,7 @@ class HomeScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.teal.shade100, Colors.teal.shade50],
+            colors: [Colors.teal.shade200, Colors.teal.shade50],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -36,6 +36,7 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 30),
               // 마스크 스토어 섹션
               _buildCard(
                 context,
@@ -57,6 +58,17 @@ class HomeScreen extends StatelessWidget {
                   context.push('/settingsScreen');
                 },
               ),
+              const SizedBox(height: 30),
+              // 추가 섹션
+              _buildCard(
+                context,
+                icon: Icons.favorite,
+                title: '즐겨찾기',
+                subtitle: '즐겨찾기 한 약국 보기',
+                onTap: () {
+                  context.push('/favoritesScreen');
+                },
+              ),
             ],
           ),
         ),
@@ -66,20 +78,23 @@ class HomeScreen extends StatelessWidget {
 
   // 카드 생성을 위한 헬퍼 메서드
   Widget _buildCard(BuildContext context,
-      {required IconData icon,
-        required String title,
-        required String subtitle,
-        required Function() onTap}) {
+      {required IconData icon, required String title, required String subtitle, required Function() onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 5,
-        shadowColor: Colors.grey.withOpacity(0.2),
+        shadowColor: Colors.grey.withOpacity(0.3),
         child: ListTile(
-          leading: Icon(icon, size: 50, color: Colors.teal),
-          title: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          subtitle: Text(subtitle, style: const TextStyle(fontSize: 14)),
+          leading: Icon(icon, size: 40, color: Colors.teal),
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: const TextStyle(fontSize: 14),
+          ),
           trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey),
         ),
       ),
@@ -125,10 +140,8 @@ class HomeScreen extends StatelessWidget {
   // 검색 결과를 처리하는 함수
   void _performSearch(BuildContext context, String searchTerm) {
     if (searchTerm.isNotEmpty) {
-      // 검색어를 전달하여 검색 화면으로 이동
       context.push('/maskStoreScreen?search=$searchTerm');
     } else {
-      // 검색어가 없을 경우 처리
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('검색어를 입력하세요')),
       );
