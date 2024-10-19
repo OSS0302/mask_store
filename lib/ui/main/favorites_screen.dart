@@ -99,7 +99,7 @@ class FavoritesScreen extends StatelessWidget {
               ),
               child: Image.network(
                 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRK0ZkGuGa63hz6IGaxDNfhOHR4VK3Y7wkAIjsTeEYTycSq9xBzvjfAH7E&s',
-                fit: BoxFit.contain,
+                fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return const Icon(Icons.error, size: 50, color: Colors.red);
                 },
