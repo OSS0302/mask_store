@@ -6,17 +6,23 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 다크모드 여부 확인
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           '마스크 스토어 앱',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black, // 다크모드에 맞춰 색상 변경
+          ),
         ),
-        backgroundColor: Colors.teal,
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal,
         elevation: 0, // 앱바 그림자 제거
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.black),
             onPressed: () {
               _showSearchDialog(context); // 검색 다이얼로그 호출
             },
@@ -26,7 +32,9 @@ class HomeScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.teal.shade200, Colors.teal.shade50],
+            colors: isDarkMode
+                ? [Colors.black, Colors.grey.shade900] // 다크모드 배경색
+                : [Colors.teal.shade200, Colors.teal.shade50], // 라이트모드 배경색
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -79,23 +87,33 @@ class HomeScreen extends StatelessWidget {
   // 카드 생성을 위한 헬퍼 메서드
   Widget _buildCard(BuildContext context,
       {required IconData icon, required String title, required String subtitle, required Function() onTap}) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Card(
+        color: isDarkMode ? Colors.grey.shade800 : Colors.white, // 다크모드에서 카드 배경 색 변경
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 5,
         shadowColor: Colors.grey.withOpacity(0.3),
         child: ListTile(
-          leading: Icon(icon, size: 40, color: Colors.teal),
+          leading: Icon(icon, size: 40, color: isDarkMode ? Colors.white : Colors.teal),
           title: Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black, // 다크모드에서 텍스트 색상 변경
+            ),
           ),
           subtitle: Text(
             subtitle,
-            style: const TextStyle(fontSize: 14),
+            style: TextStyle(
+              fontSize: 14,
+              color: isDarkMode ? Colors.grey.shade400 : Colors.grey, // 서브타이틀 색상 다크모드 적용
+            ),
           ),
-          trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+          trailing: Icon(Icons.arrow_forward_ios, color: isDarkMode ? Colors.white : Colors.grey),
         ),
       ),
     );
@@ -104,24 +122,33 @@ class HomeScreen extends StatelessWidget {
   // 검색 다이얼로그
   void _showSearchDialog(BuildContext context) {
     final TextEditingController searchController = TextEditingController();
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('약국 검색'),
+          backgroundColor: isDarkMode ? Colors.grey.shade900 : Colors.white,
+          title: Text(
+            '약국 검색',
+            style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+          ),
           content: TextField(
             controller: searchController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: '검색어를 입력하세요',
+              hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+              filled: true,
+              fillColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
             ),
+            style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop(); // 다이얼로그 닫기
               },
-              child: const Text('취소'),
+              child: Text('취소', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
             ),
             TextButton(
               onPressed: () {
@@ -129,7 +156,7 @@ class HomeScreen extends StatelessWidget {
                 Navigator.of(context).pop(); // 다이얼로그 닫기
                 _performSearch(context, searchTerm); // 검색 실행
               },
-              child: const Text('검색'),
+              child: Text('검색', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
             ),
           ],
         );

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../main/mask_store_view_model.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -14,17 +13,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('설정', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: Colors.teal,
+        title: const Text(
+          '설정',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal,
         elevation: 0,
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.teal.shade100, Colors.teal.shade50],
+            colors: isDarkMode
+                ? [Colors.black, Colors.grey.shade900] // 다크모드 배경색
+                : [Colors.teal.shade100, Colors.teal.shade50], // 라이트모드 배경색
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -34,11 +39,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             // 다크 모드 설정
             Card(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.white, // 다크모드에서 카드 배경색 변경
               elevation: 4,
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: ListTile(
-                leading: const Icon(Icons.dark_mode, color: Colors.teal),
-                title: const Text('다크 모드', style: TextStyle(fontSize: 18)),
+                leading: Icon(Icons.dark_mode, color: isDarkMode ? Colors.white : Colors.teal),
+                title: Text(
+                  '다크 모드',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDarkMode ? Colors.white : Colors.black, // 다크모드 텍스트 색상
+                  ),
+                ),
                 trailing: Switch(
                   value: maskStoreViewModel.isDarkMode,
                   activeColor: Colors.teal,
@@ -51,11 +63,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // 알림 설정
             Card(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.white,
               elevation: 4,
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: ListTile(
-                leading: const Icon(Icons.notifications, color: Colors.teal),
-                title: const Text('알림 설정', style: TextStyle(fontSize: 18)),
+                leading: Icon(Icons.notifications, color: isDarkMode ? Colors.white : Colors.teal),
+                title: Text(
+                  '알림 설정',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
                 trailing: Switch(
                   value: maskStoreViewModel.isNotificationsEnabled,
                   activeColor: Colors.teal,
@@ -68,12 +87,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // 언어 설정
             Card(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.white,
               elevation: 4,
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: ListTile(
-                leading: const Icon(Icons.language, color: Colors.teal),
-                title: const Text('언어 설정', style: TextStyle(fontSize: 18)),
-                subtitle: Text(maskStoreViewModel.currentLanguage),
+                leading: Icon(Icons.language, color: isDarkMode ? Colors.white : Colors.teal),
+                title: Text(
+                  '언어 설정',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+                subtitle: Text(
+                  maskStoreViewModel.currentLanguage,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey,
+                  ),
+                ),
                 onTap: () {
                   _showLanguageDialog(context, maskStoreViewModel);
                 },
@@ -86,16 +117,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showLanguageDialog(BuildContext context, MaskStoreViewModel viewModel) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('언어 선택', style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: isDarkMode ? Colors.grey.shade900 : Colors.white,
+          title: Text(
+            '언어 선택',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
+          ),
           content: SingleChildScrollView(
             child: ListBody(
               children: [
                 RadioListTile<String>(
-                  title: const Text('한국어'),
+                  title: Text(
+                    '한국어',
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  ),
                   value: '한국어',
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
@@ -104,7 +147,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 RadioListTile<String>(
-                  title: const Text('English'),
+                  title: Text(
+                    'English',
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  ),
                   value: 'English',
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
@@ -117,7 +163,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           actions: [
             TextButton(
-              child: const Text('닫기', style: TextStyle(color: Colors.teal)),
+              child: Text(
+                '닫기',
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal),
+              ),
               onPressed: () {
                 Navigator.pop(context);
               },
