@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../main/mask_store_view_model.dart';
 
@@ -79,7 +80,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: maskStoreViewModel.isNotificationsEnabled,
                   activeColor: Colors.teal,
                   onChanged: (value) {
-                    maskStoreViewModel.toggleNotifications();
+                    setState(() {
+                      maskStoreViewModel.toggleNotifications();
+
+                      // 알림 상태 변경에 따른 SnackBar 표시
+                      final message = maskStoreViewModel.isNotificationsEnabled
+                          ? '알림이 활성화되었습니다'
+                          : '알림이 비활성화되었습니다';
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(message),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    });
                   },
                 ),
               ),
@@ -143,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
                     viewModel.changeLanguage(value!);
-                    Navigator.pop(context);
+                    context.pop(context);
                   },
                 ),
                 RadioListTile<String>(
@@ -155,7 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
                     viewModel.changeLanguage(value!);
-                    Navigator.pop(context);
+                    context.pop(context);
                   },
                 ),
               ],
@@ -168,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal),
               ),
               onPressed: () {
-                Navigator.pop(context);
+                context.pop(context);
               },
             ),
           ],
