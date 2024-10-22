@@ -57,6 +57,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   activeColor: Colors.teal,
                   onChanged: (value) {
                     maskStoreViewModel.toggleDarkMode();
+                    maskStoreViewModel.toggleNotifications();
+
+                    // 알림 상태 변경에 따른 SnackBar 표시
+                    final darkMessage = maskStoreViewModel.isNotificationsEnabled
+                        ? '타크모드가 활성화되었습니다'
+                        : '타크모드가 비활성화되었습니다';
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(darkMessage),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
                   },
                 ),
               ),
@@ -84,13 +97,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       maskStoreViewModel.toggleNotifications();
 
                       // 알림 상태 변경에 따른 SnackBar 표시
-                      final message = maskStoreViewModel.isNotificationsEnabled
+                      final alarmMessage = maskStoreViewModel.isNotificationsEnabled
                           ? '알림이 활성화되었습니다'
                           : '알림이 비활성화되었습니다';
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(message),
+                          content: Text(alarmMessage),
                           duration: const Duration(seconds: 2),
                         ),
                       );
