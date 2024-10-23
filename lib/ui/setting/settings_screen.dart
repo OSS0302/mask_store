@@ -59,17 +59,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     maskStoreViewModel.toggleDarkMode();
                     maskStoreViewModel.toggleNotifications();
 
-                    // 알림 상태 변경에 따른 SnackBar 표시
+                    // 알림 상태 변경에 따른 스낵바 표시
                     final darkMessage = maskStoreViewModel.isNotificationsEnabled
-                        ? '타크모드가 활성화되었습니다'
-                        : '타크모드가 비활성화되었습니다';
+                        ? '다크 모드가 활성화되었습니다'
+                        : '다크 모드가 비활성화되었습니다';
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(darkMessage),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
+                    _showCustomSnackBar(context, darkMessage, isDarkMode);
                   },
                 ),
               ),
@@ -96,17 +91,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     setState(() {
                       maskStoreViewModel.toggleNotifications();
 
-                      // 알림 상태 변경에 따른 SnackBar 표시
+                      // 알림 상태 변경에 따른 스낵바 표시
                       final alarmMessage = maskStoreViewModel.isNotificationsEnabled
                           ? '알림이 활성화되었습니다'
                           : '알림이 비활성화되었습니다';
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(alarmMessage),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                      _showCustomSnackBar(context, alarmMessage, isDarkMode);
                     });
                   },
                 ),
@@ -142,6 +132,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  void _showCustomSnackBar(BuildContext context, String message, bool isDarkMode) {
+    final snackBar = SnackBar(
+      content: Text(
+        message,
+        style: TextStyle(
+          color: isDarkMode ? Colors.black : Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: isDarkMode ? Colors.teal.shade200 : Colors.teal.shade600,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      behavior: SnackBarBehavior.floating, // 스낵바가 화면에 떠 있도록
+      margin: const EdgeInsets.all(16), // 스낵바 위치 조정
+      duration: const Duration(seconds: 2),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   void _showLanguageDialog(BuildContext context, MaskStoreViewModel viewModel) {
