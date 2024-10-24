@@ -29,8 +29,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDarkMode
-                ? [Colors.black, Colors.grey.shade900] // 다크모드 배경색
-                : [Colors.teal.shade100, Colors.teal.shade50], // 라이트모드 배경색
+                ? [Colors.black, Colors.grey.shade900]
+                : [Colors.teal.shade100, Colors.teal.shade50],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -40,7 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             // 다크 모드 설정
             Card(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.white, // 다크모드에서 카드 배경색 변경
+              color: isDarkMode ? Colors.grey.shade800 : Colors.white,
               elevation: 4,
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: ListTile(
@@ -49,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   '다크 모드',
                   style: TextStyle(
                     fontSize: 18,
-                    color: isDarkMode ? Colors.white : Colors.black, // 다크모드 텍스트 색상
+                    color: isDarkMode ? Colors.white : Colors.black,
                   ),
                 ),
                 trailing: Switch(
@@ -57,13 +57,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   activeColor: Colors.teal,
                   onChanged: (value) {
                     maskStoreViewModel.toggleDarkMode();
-                    maskStoreViewModel.toggleNotifications();
-
-                    // 알림 상태 변경에 따른 스낵바 표시
-                    final darkMessage = maskStoreViewModel.isNotificationsEnabled
+                    final darkMessage = maskStoreViewModel.isDarkMode
                         ? '다크 모드가 활성화되었습니다'
                         : '다크 모드가 비활성화되었습니다';
-
                     _showCustomSnackBar(context, darkMessage, isDarkMode);
                   },
                 ),
@@ -88,16 +84,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: maskStoreViewModel.isNotificationsEnabled,
                   activeColor: Colors.teal,
                   onChanged: (value) {
-                    setState(() {
-                      maskStoreViewModel.toggleNotifications();
-
-                      // 알림 상태 변경에 따른 스낵바 표시
-                      final alarmMessage = maskStoreViewModel.isNotificationsEnabled
-                          ? '알림이 활성화되었습니다'
-                          : '알림이 비활성화되었습니다';
-
-                      _showCustomSnackBar(context, alarmMessage, isDarkMode);
-                    });
+                    maskStoreViewModel.toggleNotifications();
+                    final alarmMessage = maskStoreViewModel.isNotificationsEnabled
+                        ? '알림이 활성화되었습니다'
+                        : '알림이 비활성화되었습니다';
+                    _showCustomSnackBar(context, alarmMessage, isDarkMode);
                   },
                 ),
               ),
@@ -147,8 +138,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      behavior: SnackBarBehavior.floating, // 스낵바가 화면에 떠 있도록
-      margin: const EdgeInsets.all(16), // 스낵바 위치 조정
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.all(16),
       duration: const Duration(seconds: 2),
     );
 
@@ -182,6 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
                     viewModel.changeLanguage(value!);
+                    _showCustomSnackBar(context, '언어가 한국어로 변경되었습니다', isDarkMode);
                     context.pop(context);
                   },
                 ),
@@ -194,6 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
                     viewModel.changeLanguage(value!);
+                    _showCustomSnackBar(context, '언어가 변경되었습니다.', isDarkMode);
                     context.pop(context);
                   },
                 ),
