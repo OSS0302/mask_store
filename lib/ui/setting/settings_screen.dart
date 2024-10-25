@@ -20,7 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         title: const Text(
           '설정',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: isDarkMode ? Colors.black : Colors.teal,
         elevation: 0,
@@ -38,13 +38,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            // 다크 모드 설정
+            // 다크 모드 설정 아이콘
             Card(
               color: isDarkMode ? Colors.grey.shade800 : Colors.white,
               elevation: 4,
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: ListTile(
-                leading: Icon(Icons.dark_mode, color: isDarkMode ? Colors.white : Colors.teal),
+                leading: Icon(
+                  isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                  color: isDarkMode ? Colors.white : Colors.teal,
+                ),
                 title: Text(
                   '다크 모드',
                   style: TextStyle(
@@ -52,10 +55,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: isDarkMode ? Colors.white : Colors.black,
                   ),
                 ),
-                trailing: Switch(
-                  value: maskStoreViewModel.isDarkMode,
-                  activeColor: Colors.teal,
-                  onChanged: (value) {
+                trailing: IconButton(
+                  icon: Icon(
+                    isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                    color: isDarkMode ? Colors.teal : Colors.amber,
+                    size: 32,
+                  ),
+                  onPressed: () {
                     maskStoreViewModel.toggleDarkMode();
                     final darkMessage = maskStoreViewModel.isDarkMode
                         ? '다크 모드가 활성화되었습니다'
@@ -67,60 +73,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             // 알림 설정
-            Card(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-              elevation: 4,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: ListTile(
-                leading: Icon(Icons.notifications, color: isDarkMode ? Colors.white : Colors.teal),
-                title: Text(
-                  '알림 설정',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: isDarkMode ? Colors.white : Colors.black,
-                  ),
-                ),
-                trailing: Switch(
-                  value: maskStoreViewModel.isNotificationsEnabled,
-                  activeColor: Colors.teal,
-                  onChanged: (value) {
-                    maskStoreViewModel.toggleNotifications();
-                    final alarmMessage = maskStoreViewModel.isNotificationsEnabled
-                        ? '알림이 활성화되었습니다'
-                        : '알림이 비활성화되었습니다';
-                    _showCustomSnackBar(context, alarmMessage, isDarkMode);
-                  },
-                ),
+            _buildSettingCard(
+              context,
+              title: '알림 설정',
+              icon: Icons.notifications,
+              isDarkMode: isDarkMode,
+              trailing: Switch(
+                value: maskStoreViewModel.isNotificationsEnabled,
+                activeColor: Colors.teal,
+                onChanged: (value) {
+                  maskStoreViewModel.toggleNotifications();
+                  final alarmMessage = maskStoreViewModel.isNotificationsEnabled
+                      ? '알림이 활성화되었습니다'
+                      : '알림이 비활성화되었습니다';
+                  _showCustomSnackBar(context, alarmMessage, isDarkMode);
+                },
               ),
             ),
 
             // 언어 설정
-            Card(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-              elevation: 4,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: ListTile(
-                leading: Icon(Icons.language, color: isDarkMode ? Colors.white : Colors.teal),
-                title: Text(
-                  '언어 설정',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: isDarkMode ? Colors.white : Colors.black,
-                  ),
-                ),
-                subtitle: Text(
-                  maskStoreViewModel.currentLanguage,
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey,
-                  ),
-                ),
-                onTap: () {
-                  _showLanguageDialog(context, maskStoreViewModel);
-                },
-              ),
+            _buildSettingCard(
+              context,
+              title: '언어 설정',
+              icon: Icons.language,
+              isDarkMode: isDarkMode,
+              subtitle: maskStoreViewModel.currentLanguage,
+              onTap: () => _showLanguageDialog(context, maskStoreViewModel),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSettingCard(BuildContext context,
+      {required String title,
+        required IconData icon,
+        required bool isDarkMode,
+        String? subtitle,
+        Widget? trailing,
+        VoidCallback? onTap}) {
+    return Card(
+      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: Icon(icon, color: isDarkMode ? Colors.white : Colors.teal),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+          subtitle,
+          style: TextStyle(
+            color: isDarkMode ? Colors.grey.shade400 : Colors.grey,
+          ),
+        )
+            : null,
+        trailing: trailing,
+        onTap: onTap,
       ),
     );
   }
@@ -154,6 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: isDarkMode ? Colors.grey.shade900 : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             '언어 선택',
             style: TextStyle(
@@ -174,7 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (value) {
                     viewModel.changeLanguage(value!);
                     _showCustomSnackBar(context, '언어가 한국어로 변경되었습니다', isDarkMode);
-                    context.pop(context);
+                    context.pop();
                   },
                 ),
                 RadioListTile<String>(
@@ -186,8 +203,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   groupValue: viewModel.currentLanguage,
                   onChanged: (value) {
                     viewModel.changeLanguage(value!);
-                    _showCustomSnackBar(context, '언어가 변경되었습니다.', isDarkMode);
-                    context.pop(context);
+                    _showCustomSnackBar(context, '언어가 English로 변경되었습니다', isDarkMode);
+                    context.pop();
                   },
                 ),
               ],
@@ -195,13 +212,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           actions: [
             TextButton(
+              onPressed: () {
+                context.pop();
+              },
               child: Text(
                 '닫기',
                 style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal),
               ),
-              onPressed: () {
-                context.pop(context);
-              },
             ),
           ],
         );
