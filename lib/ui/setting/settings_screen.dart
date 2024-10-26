@@ -72,22 +72,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
 
-            // 알림 설정
-            _buildSettingCard(
-              context,
-              title: '알림 설정',
-              icon: Icons.notifications,
-              isDarkMode: isDarkMode,
-              trailing: Switch(
-                value: maskStoreViewModel.isNotificationsEnabled,
-                activeColor: Colors.teal,
-                onChanged: (value) {
-                  maskStoreViewModel.toggleNotifications();
-                  final alarmMessage = maskStoreViewModel.isNotificationsEnabled
-                      ? '알림이 활성화되었습니다'
-                      : '알림이 비활성화되었습니다';
-                  _showCustomSnackBar(context, alarmMessage, isDarkMode);
-                },
+            // 알림 설정 아이콘
+            Card(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+              elevation: 4,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              child: ListTile(
+                leading: Icon(
+                  Icons.notifications,
+                  color: isDarkMode ? Colors.white : Colors.teal,
+                ),
+                title: Text(
+                  '알림 설정',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: Icon(
+                    maskStoreViewModel.isNotificationsEnabled
+                        ? Icons.notifications
+                        : Icons.notifications_off,
+                    color: maskStoreViewModel.isNotificationsEnabled
+                        ? Colors.teal
+                        : Colors.grey,
+                    size: 32,
+                  ),
+                  onPressed: () {
+                    maskStoreViewModel.toggleNotifications();
+                    final alarmMessage = maskStoreViewModel.isNotificationsEnabled
+                        ? '알림이 활성화되었습니다'
+                        : '알림이 비활성화되었습니다';
+                    _showCustomSnackBar(context, alarmMessage, isDarkMode);
+                  },
+                ),
               ),
             ),
 
