@@ -18,6 +18,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
+    final isDarkMode = maskStoreViewModel.isDarkMode; // 다크모드 여부 가져오기
 
     final favoriteStores = maskStoreViewModel.state.stores
         .where((store) => store.isFavorite && store.storeName.contains(_searchQuery))
@@ -33,13 +34,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.teal.shade300,
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal.shade300,
         elevation: 0,
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.teal.shade100, Colors.teal.shade50],
+            colors: isDarkMode
+                ? [Colors.black87, Colors.grey.shade900]
+                : [Colors.teal.shade100, Colors.teal.shade50],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -52,24 +55,25 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 controller: _searchController,
                 onChanged: (value) {
                   setState(() {
-                    _searchQuery = value; // 검색어 업데이트
+                    _searchQuery = value;
                   });
                 },
                 decoration: InputDecoration(
                   hintText: '약국 이름 검색',
                   prefixIcon: const Icon(Icons.search, color: Colors.teal),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none,
                   ),
+                  hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                 ),
               ),
             ),
             Expanded(
               child: favoriteStores.isEmpty
-                  ? _buildEmptyFavorites()
+                  ? _buildEmptyFavorites(isDarkMode)
                   : Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                 child: ListView.builder(
@@ -77,7 +81,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   itemCount: favoriteStores.length,
                   itemBuilder: (context, index) {
                     final store = favoriteStores[index];
-                    return _buildStoreCard(store, context);
+                    return _buildStoreCard(store, context, isDarkMode);
                   },
                 ),
               ),
@@ -88,14 +92,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildEmptyFavorites() {
+  Widget _buildEmptyFavorites(bool isDarkMode) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.favorite_border,
-            color: Colors.grey.shade400,
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
             size: 100,
           ),
           const SizedBox(height: 16),
@@ -103,7 +107,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             '즐겨찾기 한 약국이 없습니다.',
             style: TextStyle(
               fontSize: 20,
-              color: Colors.grey.shade600,
+              color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade600,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -112,7 +116,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildStoreCard(MaskStore store, BuildContext context) {
+  Widget _buildStoreCard(MaskStore store, BuildContext context, bool isDarkMode) {
     return GestureDetector(
       onTap: () {
         // 약국 상세 페이지로 이동하거나 다른 동작 추가 가능
@@ -123,6 +127,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ),
         elevation: 6,
         margin: const EdgeInsets.symmetric(vertical: 10),
+        color: isDarkMode ? Colors.grey.shade800 : Colors.white,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -149,9 +154,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 children: [
                   Text(
                     store.storeName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -161,7 +167,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       const SizedBox(width: 4),
                       Text(
                         '${store.distance.toStringAsFixed(2)} km',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -172,10 +178,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       _buildStatusChip(store.remainStatus),
                       IconButton(
                         icon: Icon(
-                          store.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: store.isFavorite ? Colors.red : Colors.grey,
+                          store.isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: store.isFavorite ? Colors.red : (isDarkMode ? Colors.grey.shade400 : Colors.grey),
                         ),
                         onPressed: () {
                           context.read<MaskStoreViewModel>().toggleFavorite(store);
