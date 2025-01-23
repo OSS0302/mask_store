@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:mask_store/ui/main/cart_screen.dart';
 import 'package:mask_store/ui/main/favorites_screen.dart';
 import 'package:mask_store/ui/main/home_screen.dart';
 import 'package:mask_store/ui/main/main_screen.dart';
@@ -31,6 +32,10 @@ final router = GoRouter(
     GoRoute(
       path: '/settingsScreen',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/cartScreen',
+      builder: (context, state) => const CartScreen(),
     ),
   ],
 );

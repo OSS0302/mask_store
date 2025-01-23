@@ -21,6 +21,12 @@ class MaskStoreViewModel extends ChangeNotifier {
   String _currentLanguage = '한국어';
   String get currentLanguage => _currentLanguage;
 
+  // 장바구니
+  final List<String> _cartItems = []; // 장바구니 아이템 목록
+
+  List<String> get cartItems => List.unmodifiable(_cartItems);
+
+
   MaskStoreViewModel({
     required MaskStoreRepository maskStoreRepository,
     required MyLocationRepository myLocationRepository,
@@ -124,5 +130,16 @@ class MaskStoreViewModel extends ChangeNotifier {
       stores: List.from(_state.stores)..sort((a, b) => b.remainStatus.compareTo(a.remainStatus)),
     );
     notifyListeners();
+  }
+
+  // 장바구니
+  void addToCart(String item) {
+    _cartItems.add(item);
+    notifyListeners(); // 상태 변경 알림
+  }
+
+  void removeFromCart(String item) {
+    _cartItems.remove(item);
+    notifyListeners(); // 상태 변경 알림
   }
 }

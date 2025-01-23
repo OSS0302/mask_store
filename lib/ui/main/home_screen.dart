@@ -66,8 +66,8 @@ class HomeScreen extends StatelessWidget {
                   context.push('/settingsScreen');
                 },
               ),
-              const SizedBox(height: 30),
-              // 추가 섹션
+              const SizedBox(height: 16),
+              // 즐겨찾기 섹션
               _buildCard(
                 context,
                 icon: Icons.favorite,
@@ -75,6 +75,17 @@ class HomeScreen extends StatelessWidget {
                 subtitle: '즐겨찾기 한 약국 보기',
                 onTap: () {
                   context.push('/favoritesScreen');
+                },
+              ),
+              const SizedBox(height: 16),
+              // 장바구니 섹션 추가
+              _buildCard(
+                context,
+                icon: Icons.shopping_cart,
+                title: '장바구니',
+                subtitle: '장바구니에 담긴 상품 보기',
+                onTap: () {
+                  context.push('/cartScreen');
                 },
               ),
             ],
