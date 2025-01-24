@@ -21,11 +21,18 @@ class MaskStoreViewModel extends ChangeNotifier {
   String _currentLanguage = '한국어';
   String get currentLanguage => _currentLanguage;
 
+  // 테마 색상 이름
+  String _currentThemeColorName = 'blue';
+  String get currentThemeColorName => _currentThemeColorName;
+
+  // 폰트 크기 설정
+  double _fontSize = 16.0;
+  double get fontSize => _fontSize;
+
   // 장바구니
   final List<String> _cartItems = []; // 장바구니 아이템 목록
 
   List<String> get cartItems => List.unmodifiable(_cartItems);
-
 
   MaskStoreViewModel({
     required MaskStoreRepository maskStoreRepository,
@@ -107,6 +114,22 @@ class MaskStoreViewModel extends ChangeNotifier {
   // 언어 변경
   void changeLanguage(String language) {
     _currentLanguage = language;
+    notifyListeners();
+  }
+
+  // 테마 색상 변경
+  MaterialColor _currentThemeColor = Colors.blue; // 기본 색상
+  MaterialColor get currentThemeColor => _currentThemeColor;
+
+// 테마 색상 변경 메서드
+  void changeThemeColor(MaterialColor color) {
+    _currentThemeColor = color;
+    notifyListeners();
+  }
+
+  // 폰트 크기 변경
+  void changeFontSize(double newSize) {
+    _fontSize = newSize;
     notifyListeners();
   }
 
