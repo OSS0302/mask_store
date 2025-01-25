@@ -6,7 +6,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 다크모드 여부 확인
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -15,16 +14,23 @@ class HomeScreen extends StatelessWidget {
           '마스크 스토어 앱',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.white : Colors.black, // 다크모드에 맞춰 색상 변경
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
         ),
         backgroundColor: isDarkMode ? Colors.black : Colors.teal,
-        elevation: 0, // 앱바 그림자 제거
+        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.black),
             onPressed: () {
-              _showSearchDialog(context); // 검색 다이얼로그 호출
+              _showSearchDialog(context);
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.account_circle, color: isDarkMode ? Colors.white : Colors.black),
+            onPressed: () {
+              // 사용자 프로필 화면으로 이동
+              context.push('/profileScreen');
             },
           ),
         ],
@@ -33,8 +39,8 @@ class HomeScreen extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDarkMode
-                ? [Colors.black, Colors.grey.shade900] // 다크모드 배경색
-                : [Colors.teal.shade200, Colors.teal.shade50], // 라이트모드 배경색
+                ? [Colors.black, Colors.grey.shade900]
+                : [Colors.teal.shade200, Colors.teal.shade50],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -45,49 +51,13 @@ class HomeScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 30),
-              // 마스크 스토어 섹션
-              _buildCard(
-                context,
-                icon: Icons.storefront,
-                title: '마스크 스토어',
-                subtitle: '마스크 스토어 재고 보기',
-                onTap: () {
-                  context.push('/maskStoreScreen');
-                },
-              ),
+              _buildCategoryCard(context, '마스크 스토어', Icons.storefront, '/maskStoreScreen'),
               const SizedBox(height: 16),
-              // 설정 섹션
-              _buildCard(
-                context,
-                icon: Icons.settings,
-                title: '설정',
-                subtitle: '사용자 환경 설정 관리',
-                onTap: () {
-                  context.push('/settingsScreen');
-                },
-              ),
+              _buildCategoryCard(context, '설정', Icons.settings, '/settingsScreen'),
               const SizedBox(height: 16),
-              // 즐겨찾기 섹션
-              _buildCard(
-                context,
-                icon: Icons.favorite,
-                title: '즐겨찾기',
-                subtitle: '즐겨찾기 한 약국 보기',
-                onTap: () {
-                  context.push('/favoritesScreen');
-                },
-              ),
+              _buildCategoryCard(context, '즐겨찾기', Icons.favorite, '/favoritesScreen'),
               const SizedBox(height: 16),
-              // 장바구니 섹션 추가
-              _buildCard(
-                context,
-                icon: Icons.shopping_cart,
-                title: '장바구니',
-                subtitle: '장바구니에 담긴 상품 보기',
-                onTap: () {
-                  context.push('/cartScreen');
-                },
-              ),
+              _buildCategoryCard(context, '장바구니', Icons.shopping_cart, '/cartScreen'),
             ],
           ),
         ),
@@ -95,15 +65,15 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 카드 생성을 위한 헬퍼 메서드
-  Widget _buildCard(BuildContext context,
-      {required IconData icon, required String title, required String subtitle, required Function() onTap}) {
+  Widget _buildCategoryCard(BuildContext context, String title, IconData icon, String route) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        context.push(route);
+      },
       child: Card(
-        color: isDarkMode ? Colors.grey.shade800 : Colors.white, // 다크모드에서 카드 배경 색 변경
+        color: isDarkMode ? Colors.grey.shade800 : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 5,
         shadowColor: Colors.grey.withOpacity(0.3),
@@ -114,14 +84,14 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isDarkMode ? Colors.white : Colors.black, // 다크모드에서 텍스트 색상 변경
+              color: isDarkMode ? Colors.white : Colors.black,
             ),
           ),
           subtitle: Text(
-            subtitle,
+            '이 섹션을 클릭하여 자세히 알아보세요.',
             style: TextStyle(
               fontSize: 14,
-              color: isDarkMode ? Colors.grey.shade400 : Colors.grey, // 서브타이틀 색상 다크모드 적용
+              color: isDarkMode ? Colors.grey.shade400 : Colors.grey,
             ),
           ),
           trailing: Icon(Icons.arrow_forward_ios, color: isDarkMode ? Colors.white : Colors.grey),
@@ -130,7 +100,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 검색 다이얼로그
   void _showSearchDialog(BuildContext context) {
     final TextEditingController searchController = TextEditingController();
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -157,15 +126,15 @@ class HomeScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // 다이얼로그 닫기
+                Navigator.of(context).pop();
               },
               child: Text('취소', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
             ),
             TextButton(
               onPressed: () {
                 final searchTerm = searchController.text;
-                Navigator.of(context).pop(); // 다이얼로그 닫기
-                _performSearch(context, searchTerm); // 검색 실행
+                Navigator.of(context).pop();
+                _performSearch(context, searchTerm);
               },
               child: Text('검색', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
             ),
@@ -175,7 +144,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 검색 결과를 처리하는 함수
   void _performSearch(BuildContext context, String searchTerm) {
     if (searchTerm.isNotEmpty) {
       context.push('/maskStoreScreen?search=$searchTerm');
