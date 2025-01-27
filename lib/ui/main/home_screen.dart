@@ -18,7 +18,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         backgroundColor: isDarkMode ? Colors.black : Colors.teal,
-        elevation: 2,
+        elevation: 4,
         actions: [
           IconButton(
             icon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.black),
@@ -39,13 +39,13 @@ class HomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             colors: isDarkMode
                 ? [Colors.black, Colors.grey.shade900]
-                : [Colors.teal.shade300, Colors.teal.shade50],
+                : [Colors.teal.shade200, Colors.teal.shade50],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+          padding: const EdgeInsets.all(16.0),
           child: GridView.builder(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -82,7 +82,7 @@ class HomeScreen extends StatelessWidget {
         context.push(route);
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: isDarkMode ? Colors.grey.shade800 : Colors.white,
@@ -90,7 +90,7 @@ class HomeScreen extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
+              blurRadius: 8,
               offset: const Offset(0, 4),
             ),
           ],
@@ -99,7 +99,7 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 40, color: isDarkMode ? Colors.white : Colors.teal),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -122,47 +122,67 @@ class HomeScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: isDarkMode ? Colors.grey.shade900 : Colors.white,
-          title: Text(
-            '약국 검색',
-            style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-          ),
-          content: TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: '검색어를 입력하세요',
-              hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
-              filled: true,
-              fillColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: isDarkMode ? Colors.grey.shade900 : Colors.white,
+              title: Text(
+                '약국 검색',
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
               ),
-            ),
-            style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('취소', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
-            ),
-            TextButton(
-              onPressed: () {
-                final searchTerm = searchController.text.trim();
-                Navigator.of(context).pop();
-                if (searchTerm.isNotEmpty) {
-                  _performSearch(context, searchTerm);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('검색어를 입력하세요')),
-                  );
-                }
-              },
-              child: Text('검색', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
-            ),
-          ],
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: searchController,
+                    onChanged: (value) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: '검색어를 입력하세요',
+                      hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                      filled: true,
+                      fillColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  ),
+                  if (searchController.text.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        '검색어: ${searchController.text}',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.grey.shade400 : Colors.black,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('취소', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final searchTerm = searchController.text.trim();
+                    Navigator.of(context).pop();
+                    if (searchTerm.isNotEmpty) {
+                      _performSearch(context, searchTerm);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('검색어를 입력하세요')),
+                      );
+                    }
+                  },
+                  child: Text('검색', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
+                ),
+              ],
+            );
+          },
         );
       },
     );
