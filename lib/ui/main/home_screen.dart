@@ -8,29 +8,33 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
+    final categories = [
+      {'title': '마스크 스토어', 'icon': Icons.storefront, 'route': '/maskStoreScreen'},
+      {'title': '설정', 'icon': Icons.settings, 'route': '/settingsScreen'},
+      {'title': '즐겨찾기', 'icon': Icons.favorite, 'route': '/favoritesScreen'},
+      {'title': '장바구니', 'icon': Icons.shopping_cart, 'route': '/cartScreen'},
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           '마스크 스토어 앱',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.white : Colors.black,
+            fontSize: 22,
+            color: isDarkMode ? Colors.white : Colors.teal.shade800,
           ),
         ),
-        backgroundColor: isDarkMode ? Colors.black : Colors.teal,
-        elevation: 4,
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal.shade200,
+        elevation: 8,
         actions: [
           IconButton(
             icon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.black),
-            onPressed: () {
-              _showSearchDialog(context);
-            },
+            onPressed: () => _showSearchDialog(context),
           ),
           IconButton(
             icon: Icon(Icons.account_circle, color: isDarkMode ? Colors.white : Colors.black),
-            onPressed: () {
-              context.push('/profileScreen');
-            },
+            onPressed: () => context.push('/profileScreen'),
           ),
         ],
       ),
@@ -44,30 +48,26 @@ class HomeScreen extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final category = categories[index];
+                return _buildCategoryCard(
+                  context,
+                  category['title'] as String,
+                  category['icon'] as IconData,
+                  category['route'] as String,
+                );
+              },
             ),
-            itemCount: 4,
-            itemBuilder: (context, index) {
-              final options = [
-                {'title': '마스크 스토어', 'icon': Icons.storefront, 'route': '/maskStoreScreen'},
-                {'title': '설정', 'icon': Icons.settings, 'route': '/settingsScreen'},
-                {'title': '즐겨찾기', 'icon': Icons.favorite, 'route': '/favoritesScreen'},
-                {'title': '장바구니', 'icon': Icons.shopping_cart, 'route': '/cartScreen'},
-              ];
-              final option = options[index];
-              return _buildCategoryCard(
-                context,
-                option['title'] as String,
-                option['icon'] as IconData,
-                option['route'] as String,
-              );
-            },
           ),
         ),
       ),
@@ -78,33 +78,38 @@ class HomeScreen extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      onTap: () {
-        context.push(route);
-      },
+      onTap: () => context.push(route),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            colors: isDarkMode
+                ? [Colors.grey.shade800, Colors.grey.shade700]
+                : [Colors.white, Colors.teal.shade50],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: isDarkMode ? Colors.white : Colors.teal),
-            const SizedBox(height: 8),
+            Icon(icon, size: 48, color: isDarkMode ? Colors.white : Colors.teal),
+            const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: isDarkMode ? Colors.white : Colors.black,
               ),
@@ -161,9 +166,7 @@ class HomeScreen extends StatelessWidget {
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: () => Navigator.of(context).pop(),
                   child: Text('취소', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
                 ),
                 TextButton(
@@ -174,7 +177,10 @@ class HomeScreen extends StatelessWidget {
                       _performSearch(context, searchTerm);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('검색어를 입력하세요')),
+                        SnackBar(
+                          backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal.shade100,
+                          content: const Text('검색어를 입력하세요'),
+                        ),
                       );
                     }
                   },
