@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -13,41 +12,56 @@ class _CartScreenState extends State<CartScreen> {
     {'name': 'KF94 마스크', 'price': 1000, 'quantity': 2},
     {'name': 'N95 마스크', 'price': 1500, 'quantity': 1},
   ];
+  double discount = 0.1; // 10% 할인
 
   double get totalPrice => cartItems.fold(0, (sum, item) {
     return sum + (item['price'] * item['quantity']);
-  });
-
-  void increaseQuantity(int index) {
-    setState(() {
-      cartItems[index]['quantity']++;
-    });
-  }
-
-  void decreaseQuantity(int index) {
-    if (cartItems[index]['quantity'] > 1) {
-      setState(() {
-        cartItems[index]['quantity']--;
-      });
-    }
-  }
-
-  void removeItem(int index) {
-    setState(() {
-      cartItems.removeAt(index);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('장바구니에서 "${cartItems[index]['name']}" 삭제됨')),
-    );
-  }
+  }) * (1 - discount);
 
   void clearCart() {
-    setState(() {
-      cartItems.clear();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('장바구니가 초기화되었습니다.')),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('장바구니 초기화'),
+        content: const Text('정말 초기화하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                cartItems.clear();
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('장바구니가 초기화되었습니다.')),
+              );
+            },
+            child: const Text(
+              '확인',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  void applyDiscount(String promoCode) {
+    if (promoCode == "SAVE10") {
+      setState(() {
+        discount = 0.1;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('10% 할인이 적용되었습니다!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('유효하지 않은 프로모션 코드입니다.')),
+      );
+    }
   }
 
   @override
@@ -56,10 +70,7 @@ class _CartScreenState extends State<CartScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '장바구니',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('장바구니'),
         backgroundColor: isDarkMode ? Colors.black : Colors.teal,
         actions: [
           if (cartItems.isNotEmpty)
@@ -70,10 +81,25 @@ class _CartScreenState extends State<CartScreen> {
         ],
       ),
       body: cartItems.isEmpty
-          ? const Center(
-        child: Text(
-          '장바구니가 비어 있습니다.',
-          style: TextStyle(fontSize: 18),
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              '장바구니가 비어 있습니다.',
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                // 예제 스토어로 이동
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('스토어로 이동 기능 준비 중')),
+                );
+              },
+              child: const Text('스토어 둘러보기'),
+            ),
+          ],
         ),
       )
           : Column(
@@ -83,85 +109,31 @@ class _CartScreenState extends State<CartScreen> {
               itemCount: cartItems.length,
               itemBuilder: (context, index) {
                 final item = cartItems[index];
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                return Dismissible(
+                  key: Key(item['name']),
+                  onDismissed: (_) {
+                    setState(() {
+                      cartItems.removeAt(index);
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${item['name']}이 삭제되었습니다.')),
+                    );
+                  },
+                  background: Container(color: Colors.redAccent),
                   child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                      isDarkMode ? Colors.teal.shade300 : Colors.teal.shade100,
-                      child: Text(
-                        item['quantity'].toString(),
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                    ),
-                    title: Text(
-                      item['name'],
-                      style: TextStyle(
-                          color: isDarkMode ? Colors.white : Colors.black,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      '₩${item['price']} / 수량: ${item['quantity']}',
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.grey.shade400 : Colors.black87,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle),
-                          color: Colors.redAccent,
-                          onPressed: () => decreaseQuantity(index),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle),
-                          color: Colors.greenAccent,
-                          onPressed: () => increaseQuantity(index),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          color: Colors.red,
-                          onPressed: () => removeItem(index),
-                        ),
-                      ],
+                    title: Text(item['name']),
+                    subtitle: Text('₩${item['price']} x ${item['quantity']}'),
+                    trailing: Text(
+                      '₩${item['price'] * item['quantity']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 );
               },
             ),
           ),
-          Container(
+          Padding(
             padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade900 : Colors.teal.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
             child: Column(
               children: [
                 Row(
@@ -172,14 +144,19 @@ class _CartScreenState extends State<CartScreen> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '₩${totalPrice.toStringAsFixed(2)}',
+                      '₩${totalPrice.toStringAsFixed(2)} (할인 적용)',
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
+                          fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: '프로모션 코드를 입력하세요',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (value) => applyDiscount(value),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -190,17 +167,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                     );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: const Text(
-                    '결제하기',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
+                  child: const Text('결제하기'),
                 ),
               ],
             ),
