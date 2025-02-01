@@ -1,29 +1,81 @@
 import 'package:flutter/material.dart';
-import 'package:mask_store/ui/main/item_view_model.dart';
-import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 
-class CartScreen extends StatelessWidget {
-  const CartScreen({super.key});
+class CartScreen extends StatefulWidget {
+  const CartScreen({Key? key}) : super(key: key);
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  List<Map<String, dynamic>> cartItems = [
+    {'name': 'KF94 마스크', 'price': 1000, 'quantity': 2},
+    {'name': 'N95 마스크', 'price': 1500, 'quantity': 1},
+  ];
+
+  double get totalPrice => cartItems.fold(0, (sum, item) {
+    return sum + (item['price'] * item['quantity']);
+  });
+
+  void increaseQuantity(int index) {
+    setState(() {
+      cartItems[index]['quantity']++;
+    });
+  }
+
+  void decreaseQuantity(int index) {
+    if (cartItems[index]['quantity'] > 1) {
+      setState(() {
+        cartItems[index]['quantity']--;
+      });
+    }
+  }
+
+  void removeItem(int index) {
+    setState(() {
+      cartItems.removeAt(index);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('장바구니에서 "${cartItems[index]['name']}" 삭제됨')),
+    );
+  }
+
+  void clearCart() {
+    setState(() {
+      cartItems.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('장바구니가 초기화되었습니다.')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cartItems = context.watch<ItemViewModel>().cartItems;
-    final cartTotal = context.watch<ItemViewModel>().calculateTotal();
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('장바구니'),
-        backgroundColor: Colors.teal,
+        title: const Text(
+          '장바구니',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal,
         actions: [
           if (cartItems.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_forever),
-              onPressed: () => _showClearCartDialog(context),
+              onPressed: clearCart,
             ),
         ],
       ),
       body: cartItems.isEmpty
-          ? _buildEmptyCartView()
+          ? const Center(
+        child: Text(
+          '장바구니가 비어 있습니다.',
+          style: TextStyle(fontSize: 18),
+        ),
+      )
           : Column(
         children: [
           Expanded(
@@ -31,59 +83,61 @@ class CartScreen extends StatelessWidget {
               itemCount: cartItems.length,
               itemBuilder: (context, index) {
                 final item = cartItems[index];
-                return Card(
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
                   margin: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
                   ),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
                   child: ListTile(
-                    title: Text(item.name),
+                    leading: CircleAvatar(
+                      backgroundColor:
+                      isDarkMode ? Colors.teal.shade300 : Colors.teal.shade100,
+                      child: Text(
+                        item['quantity'].toString(),
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                    ),
+                    title: Text(
+                      item['name'],
+                      style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.bold),
+                    ),
                     subtitle: Text(
-                      '₩${item.price.toStringAsFixed(2)} / 수량: ${item.quantity}',
+                      '₩${item['price']} / 수량: ${item['quantity']}',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.grey.shade400 : Colors.black87,
+                      ),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
                           icon: const Icon(Icons.remove_circle),
-                          onPressed: () {
-                            context
-                                .read<ItemViewModel>()
-                                .decreaseQuantity(item);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '${item.name} 수량 감소: ${item.quantity}'),
-                              ),
-                            );
-                          },
+                          color: Colors.redAccent,
+                          onPressed: () => decreaseQuantity(index),
                         ),
                         IconButton(
                           icon: const Icon(Icons.add_circle),
-                          onPressed: () {
-                            context
-                                .read<ItemViewModel>()
-                                .increaseQuantity(item);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '${item.name} 수량 증가: ${item.quantity}'),
-                              ),
-                            );
-                          },
+                          color: Colors.greenAccent,
+                          onPressed: () => increaseQuantity(index),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            context
-                                .read<ItemViewModel>()
-                                .removeFromCart(item);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${item.name} 제거됨'),
-                              ),
-                            );
-                          },
+                          color: Colors.red,
+                          onPressed: () => removeItem(index),
                         ),
                       ],
                     ),
@@ -92,106 +146,67 @@ class CartScreen extends StatelessWidget {
               },
             ),
           ),
-          Padding(
+          Container(
             padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '총 합계',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey.shade900 : Colors.teal.shade50,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, -4),
                 ),
-                Text(
-                  '₩${cartTotal.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.teal,
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '총 합계',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '₩${totalPrice.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('결제 기능은 아직 지원되지 않습니다.'),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text(
+                    '결제하기',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('결제 기능은 아직 지원되지 않습니다.'),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 40,
-                vertical: 12,
-              ),
-            ),
-            child: const Text(
-              '결제하기',
-              style: TextStyle(fontSize: 18),
-            ),
-          ),
-          const SizedBox(height: 16),
         ],
       ),
-    );
-  }
-
-  /// Empty cart view with an image and message
-  Widget _buildEmptyCartView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.shopping_cart_outlined,
-            size: 100,
-            color: Colors.grey,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            '장바구니가 비어 있습니다.',
-            style: TextStyle(fontSize: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Clear cart confirmation dialog
-  void _showClearCartDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('장바구니 초기화'),
-          content: const Text('정말로 장바구니를 비우시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                context.read<ItemViewModel>().clearCart();
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('장바구니가 초기화되었습니다.')),
-                );
-              },
-              child: const Text(
-                '확인',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
