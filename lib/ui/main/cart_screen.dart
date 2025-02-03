@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -8,15 +9,14 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  List<Map<String, dynamic>> cartItems = [
+  final List<Map<String, dynamic>> cartItems = [
     {'name': 'KF94 마스크', 'price': 1000, 'quantity': 2},
     {'name': 'N95 마스크', 'price': 1500, 'quantity': 1},
   ];
-  double discount = 0.1; // 10% 할인
+  double discount = 0.0; // 초기 할인 없음
+  bool isLoading = false;
 
-  double get totalPrice => cartItems.fold(0, (sum, item) {
-    return sum + (item['price'] * item['quantity']);
-  }) * (1 - discount);
+  double get totalPrice => cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity'])) * (1 - discount);
 
   void clearCart() {
     showDialog(
@@ -31,9 +31,7 @@ class _CartScreenState extends State<CartScreen> {
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                cartItems.clear();
-              });
+              setState(() => cartItems.clear());
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('장바구니가 초기화되었습니다.')),
@@ -51,9 +49,7 @@ class _CartScreenState extends State<CartScreen> {
 
   void applyDiscount(String promoCode) {
     if (promoCode == "SAVE10") {
-      setState(() {
-        discount = 0.1;
-      });
+      setState(() => discount = 0.1);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('10% 할인이 적용되었습니다!')),
       );
@@ -62,6 +58,16 @@ class _CartScreenState extends State<CartScreen> {
         const SnackBar(content: Text('유효하지 않은 프로모션 코드입니다.')),
       );
     }
+  }
+
+  void processCheckout() async {
+    setState(() => isLoading = true);
+    await Future.delayed(const Duration(seconds: 2));
+    setState(() => isLoading = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('결제 완료! 감사합니다.')),
+    );
   }
 
   @override
@@ -92,7 +98,6 @@ class _CartScreenState extends State<CartScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                // 예제 스토어로 이동
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('스토어로 이동 기능 준비 중')),
                 );
@@ -111,21 +116,43 @@ class _CartScreenState extends State<CartScreen> {
                 final item = cartItems[index];
                 return Dismissible(
                   key: Key(item['name']),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.redAccent,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
                   onDismissed: (_) {
-                    setState(() {
-                      cartItems.removeAt(index);
-                    });
+                    setState(() => cartItems.removeAt(index));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('${item['name']}이 삭제되었습니다.')),
                     );
                   },
-                  background: Container(color: Colors.redAccent),
                   child: ListTile(
                     title: Text(item['name']),
                     subtitle: Text('₩${item['price']} x ${item['quantity']}'),
-                    trailing: Text(
-                      '₩${item['price'] * item['quantity']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle),
+                          onPressed: () {
+                            setState(() {
+                              if (item['quantity'] > 1) {
+                                item['quantity']--;
+                              }
+                            });
+                          },
+                        ),
+                        Text('${item['quantity']}'),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle),
+                          onPressed: () {
+                            setState(() => item['quantity']++);
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -144,7 +171,7 @@ class _CartScreenState extends State<CartScreen> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '₩${totalPrice.toStringAsFixed(2)} (할인 적용)',
+                      '₩${totalPrice.toStringAsFixed(2)}',
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
                     ),
@@ -160,14 +187,10 @@ class _CartScreenState extends State<CartScreen> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('결제 기능은 아직 지원되지 않습니다.'),
-                      ),
-                    );
-                  },
-                  child: const Text('결제하기'),
+                  onPressed: isLoading ? null : processCheckout,
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('결제하기'),
                 ),
               ],
             ),
