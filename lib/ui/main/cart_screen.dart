@@ -1,3 +1,4 @@
+import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,10 +14,10 @@ class _CartScreenState extends State<CartScreen> {
     {'name': 'KF94 마스크', 'price': 1000, 'quantity': 2},
     {'name': 'N95 마스크', 'price': 1500, 'quantity': 1},
   ];
-  double discount = 0.0; // 초기 할인 없음
+  double discount = 0.0;
   bool isLoading = false;
 
-  double get totalPrice => cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity'])) * (1 - discount);
+  double get totalPrice => cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) * (1 - discount);
 
   void clearCart() {
     showDialog(
@@ -91,6 +92,8 @@ class _CartScreenState extends State<CartScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey),
+            const SizedBox(height: 16),
             const Text(
               '장바구니가 비어 있습니다.',
               style: TextStyle(fontSize: 18),
@@ -129,30 +132,32 @@ class _CartScreenState extends State<CartScreen> {
                       SnackBar(content: Text('${item['name']}이 삭제되었습니다.')),
                     );
                   },
-                  child: ListTile(
-                    title: Text(item['name']),
-                    subtitle: Text('₩${item['price']} x ${item['quantity']}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle),
-                          onPressed: () {
-                            setState(() {
-                              if (item['quantity'] > 1) {
-                                item['quantity']--;
-                              }
-                            });
-                          },
-                        ),
-                        Text('${item['quantity']}'),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle),
-                          onPressed: () {
-                            setState(() => item['quantity']++);
-                          },
-                        ),
-                      ],
+                  child: FadeIn(
+                    child: ListTile(
+                      title: Text(item['name']),
+                      subtitle: Text('₩${item['price']} x ${item['quantity']}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle),
+                            onPressed: () {
+                              setState(() {
+                                if (item['quantity'] > 1) {
+                                  item['quantity']--;
+                                }
+                              });
+                            },
+                          ),
+                          Text('${item['quantity']}'),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle),
+                            onPressed: () {
+                              setState(() => item['quantity']++);
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
