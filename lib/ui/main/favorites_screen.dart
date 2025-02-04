@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
 import '../../data/model/mask_store.dart';
-import '../component/store_item.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({Key? key}) : super(key: key);
@@ -18,7 +17,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
-    final isDarkMode = maskStoreViewModel.isDarkMode; // 다크모드 여부 가져오기
+    final isDarkMode = maskStoreViewModel.isDarkMode;
 
     final favoriteStores = maskStoreViewModel.state.stores
         .where((store) => store.isFavorite && store.storeName.contains(_searchQuery))
@@ -61,6 +60,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 decoration: InputDecoration(
                   hintText: '약국 이름 검색',
                   prefixIcon: const Icon(Icons.search, color: Colors.teal),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear, color: Colors.teal),
+                    onPressed: () {
+                      setState(() {
+                        _searchController.clear();
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                      : null,
                   filled: true,
                   fillColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
                   border: OutlineInputBorder(
@@ -119,7 +129,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget _buildStoreCard(MaskStore store, BuildContext context, bool isDarkMode) {
     return GestureDetector(
       onTap: () {
-        // 약국 상세 페이지로 이동하거나 다른 동작 추가 가능
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${store.storeName} 클릭됨')),
+        );
       },
       child: Card(
         shape: RoundedRectangleBorder(
@@ -137,7 +149,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 topRight: Radius.circular(20),
               ),
               child: SizedBox(
-                width: 400,
+                width: double.infinity,
+                height: 180,
                 child: Image.network(
                   'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRK0ZkGuGa63hz6IGaxDNfhOHR4VK3Y7wkAIjsTeEYTycSq9xBzvjfAH7E&s',
                   fit: BoxFit.cover,
@@ -223,6 +236,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return Chip(
       label: Text(text, style: const TextStyle(color: Colors.white)),
       backgroundColor: color,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     );
   }
 }
