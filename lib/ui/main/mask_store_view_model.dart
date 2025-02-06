@@ -139,6 +139,15 @@ class MaskStoreViewModel extends ChangeNotifier {
     notifyListeners(); // UI에 변경 사항 반영
   }
 
+  // 즐겨찾기 초기화
+  void clearFavorites() {
+    for (var store in _allStores) {
+      store.isFavorite = false; // 모든 즐겨찾기 해제
+    }
+    _state = state.copyWith(stores: List.from(_allStores));
+    notifyListeners(); // 상태 변경 알림
+  }
+
   // 거리순 정렬
   void sortByDistance() {
     _state = state.copyWith(
@@ -165,5 +174,4 @@ class MaskStoreViewModel extends ChangeNotifier {
     _cartItems.remove(item);
     notifyListeners(); // 상태 변경 알림
   }
-
 }
