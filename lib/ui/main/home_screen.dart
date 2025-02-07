@@ -13,6 +13,7 @@ class HomeScreen extends StatelessWidget {
       {'title': '설정', 'icon': Icons.settings, 'route': '/settingsScreen'},
       {'title': '즐겨찾기', 'icon': Icons.favorite, 'route': '/favoritesScreen'},
       {'title': '장바구니', 'icon': Icons.shopping_cart, 'route': '/cartScreen'},
+      {'title': '고객센터', 'icon': Icons.support_agent, 'route': '/customerSupportScreen'},
     ];
 
     return Scaffold(
