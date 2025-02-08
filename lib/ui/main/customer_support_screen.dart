@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mask_store/ui/main/cart_screen.dart';
+import 'package:mask_store/ui/main/favorites_screen.dart';
+import 'package:mask_store/ui/main/home_screen.dart';
+import 'package:mask_store/ui/main/mask_store_screen.dart';
+import 'package:mask_store/ui/setting/settings_screen.dart';
+import 'package:provider/provider.dart';
+
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+
+
+
 
 class CustomerSupportScreen extends StatelessWidget {
   const CustomerSupportScreen({Key? key}) : super(key: key);
@@ -89,11 +102,13 @@ class CustomerSupportScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              Center(
-                child: Lottie.asset(
-                  'assets/lottie/customer_support.json',
-                  width: 200,
-                  fit: BoxFit.cover,
+              Expanded(
+                child: Center(
+                  child: Lottie.asset(
+                    'assets/lottie/customer_support.json',
+                    width: 200,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ],
