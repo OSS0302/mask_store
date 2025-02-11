@@ -169,14 +169,13 @@ class CustomerSupportScreen extends StatelessWidget {
   }
 
   void _handleEmail(BuildContext context) async {
-    final emailUri = Uri(
+    final Uri emailUri = Uri(
       scheme: 'mailto',
       path: supportEmail,
       query: 'subject=고객 문의&body=안녕하세요,',
     );
-    if (await canLaunchUrl(emailUri)) {
-      await launchUrl(emailUri);
-    } else {
+
+    if (!await launchUrl(emailUri)) {
       Clipboard.setData(ClipboardData(text: supportEmail));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
