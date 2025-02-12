@@ -33,30 +33,31 @@ class CustomerSupportScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           '고객 지원',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
         elevation: 4,
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal.shade800,
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDarkMode
-                ? [Colors.grey.shade900, Colors.black]
-                : [Colors.teal.shade50, Colors.white],
+                ? [Colors.black, Colors.grey.shade900]
+                : [Colors.white, Colors.teal.shade50],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 '어떻게 도와드릴까요?',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               Expanded(
                 child: ListView.builder(
                   itemCount: supportOptions.length,
@@ -66,14 +67,15 @@ class CustomerSupportScreen extends StatelessWidget {
                       onTap: () => (option['action'] as Function)(context),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
                         margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withOpacity(0.1),
                               blurRadius: 12,
                               offset: const Offset(0, 6),
                             ),
@@ -83,16 +85,16 @@ class CustomerSupportScreen extends StatelessWidget {
                           children: [
                             Icon(
                               option['icon'] as IconData?,
-                              size: 32,
+                              size: 36,
                               color: isDarkMode ? Colors.tealAccent : Colors.teal.shade800,
                             ),
                             const SizedBox(width: 16),
                             Text(
                               option['title'] as String,
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w600,
-                                color: isDarkMode ? Colors.white : Colors.black,
+                                color: isDarkMode ? Colors.white : Colors.black87,
                               ),
                             ),
                           ],
@@ -102,21 +104,21 @@ class CustomerSupportScreen extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.headset_mic_outlined,
-                      size: 100,
+                      size: 120,
                       color: isDarkMode ? Colors.tealAccent : Colors.teal.shade800,
                     ),
                     const SizedBox(height: 10),
                     Text(
                       '언제든지 고객 지원에 문의하세요!',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         color: isDarkMode ? Colors.white70 : Colors.black87,
                       ),
                     ),
