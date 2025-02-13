@@ -6,8 +6,10 @@ import 'my_location_repository.dart';
 class MyLocationRepositoryImpl implements MyLocationRepository {
   @override
   double distanceBetween(
-          double startLat, double startLng, double endLat, double endLng) =>
-      Geolocator.distanceBetween(startLat, startLng, endLat, endLng).ceilToDouble();
+      double startLat, double startLng, double endLat, double endLng) {
+    double distance = Geolocator.distanceBetween(startLat, startLng, endLat, endLng);
+    return double.parse((distance * 0.001).toStringAsFixed(2));
+  }
 
   @override
   Future<MyLocation> getMyLocation() async {
