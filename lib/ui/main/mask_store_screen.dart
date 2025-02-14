@@ -57,6 +57,17 @@ class MaskStoreScreen extends StatelessWidget {
           ),
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          maskStoreViewModel.scrollController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOut,
+          );
+        },
+        backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal,
+        child: Icon(Icons.arrow_upward, color: isDarkMode ? Colors.white : Colors.black),
+      ),
     );
   }
 
