@@ -171,14 +171,14 @@ class MaskStoreScreen extends StatelessWidget {
                 title: Text('거리 순', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
                 onTap: () {
                   viewModel.sortByDistance();
-                  Navigator.pop(context);
+                  context.pop(context);
                 },
               ),
               ListTile(
                 title: Text('재고 순', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
                 onTap: () {
                   viewModel.sortByStock();
-                  Navigator.pop(context);
+                  context.pop(context);
                 },
               ),
             ],
