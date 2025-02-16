@@ -14,73 +14,63 @@ class MaskStoreScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
+        elevation: 4,
         title: Text(
-          '마스크 재고 있는 약국 ${maskStoreViewModel.state.stores.length}곳',
+          '마스크 재고 약국 (${maskStoreViewModel.state.stores.length}곳)',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             color: isDarkMode ? Colors.white : Colors.black,
           ),
         ),
-        backgroundColor: isDarkMode ? Colors.black : Colors.teal,
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal.shade700,
         actions: [
+          IconButton(
+            icon: Icon(Icons.favorite, color: isDarkMode ? Colors.redAccent : Colors.red),
+            onPressed: () => context.push("/favorites"),
+          ),
           IconButton(
             icon: Icon(Icons.map, color: isDarkMode ? Colors.white : Colors.black),
             onPressed: () => context.push("/mapViewScreen"),
           ),
+          IconButton(
+            icon: Icon(Icons.settings, color: isDarkMode ? Colors.white : Colors.black),
+            onPressed: () => context.push("/settings"),
+          ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isDarkMode
-                ? [Colors.black, Colors.grey.shade900]
-                : [Colors.teal.shade100, Colors.teal.shade50],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: maskStoreViewModel.state.isLoading
-              ? _buildLoadingIndicator(isDarkMode)
-              : Column(
-            children: [
-              _buildSearchAndFilter(context, maskStoreViewModel),
-              const Divider(height: 1, thickness: 1, color: Colors.teal),
-              Expanded(
-                child: maskStoreViewModel.state.stores.isEmpty
-                    ? _buildNoResults(isDarkMode)
-                    : _buildStoreList(maskStoreViewModel, isDarkMode),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          maskStoreViewModel.scrollController.animateTo(
-            0.0,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOut,
-          );
-        },
-        backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal,
-        child: Icon(Icons.arrow_upward, color: isDarkMode ? Colors.white : Colors.black),
-      ),
-    );
-  }
-
-  Widget _buildLoadingIndicator(bool isDarkMode) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
         children: [
-          CircularProgressIndicator(color: isDarkMode ? Colors.white : Colors.teal),
-          const SizedBox(height: 16),
-          Text(
-            '로딩 중 입니다 잠시만 기다려 주세요',
-            style: TextStyle(fontSize: 16, color: isDarkMode ? Colors.white : Colors.teal),
+          RefreshIndicator(
+            onRefresh: maskStoreViewModel.refreshStores,
+            child: Column(
+              children: [
+                _buildSearchAndFilter(context, maskStoreViewModel),
+                const Divider(height: 1, thickness: 1, color: Colors.teal),
+                Expanded(
+                  child: maskStoreViewModel.state.isLoading
+                      ? _buildLoadingIndicator(isDarkMode)
+                      : maskStoreViewModel.state.stores.isEmpty
+                      ? _buildNoResults(isDarkMode)
+                      : _buildStoreList(maskStoreViewModel, isDarkMode),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton(
+              onPressed: () {
+                maskStoreViewModel.scrollController.animateTo(
+                  0.0,
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOut,
+                );
+              },
+              backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal,
+              child: Icon(Icons.arrow_upward, color: isDarkMode ? Colors.white : Colors.black),
+            ),
           ),
         ],
       ),
@@ -90,7 +80,7 @@ class MaskStoreScreen extends StatelessWidget {
   Widget _buildSearchAndFilter(BuildContext context, MaskStoreViewModel viewModel) {
     final isDarkMode = viewModel.isDarkMode;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Expanded(
@@ -102,17 +92,55 @@ class MaskStoreScreen extends StatelessWidget {
                 hintText: '약국 이름 검색',
                 hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
-                suffixIcon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.teal),
+                prefixIcon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.teal),
               ),
             ),
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: Icon(Icons.filter_alt, color: isDarkMode ? Colors.white : Colors.teal),
+            icon: Icon(Icons.filter_list, color: isDarkMode ? Colors.white : Colors.teal),
             onPressed: () => _showSortFilterBottomSheet(context, viewModel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreList(MaskStoreViewModel viewModel, bool isDarkMode) {
+    return ListView.builder(
+      controller: viewModel.scrollController,
+      itemCount: viewModel.state.stores.length,
+      itemBuilder: (context, index) {
+        final store = viewModel.state.stores[index];
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Card(
+            color: isDarkMode ? Colors.grey.shade900 : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            elevation: 12,
+            shadowColor: Colors.black.withOpacity(0.4),
+            child: StoreItem(maskStore: store),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingIndicator(bool isDarkMode) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: isDarkMode ? Colors.white : Colors.teal),
+          const SizedBox(height: 16),
+          Text(
+            '데이터를 불러오는 중...',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: isDarkMode ? Colors.white : Colors.teal.shade700),
           ),
         ],
       ),
@@ -123,32 +151,7 @@ class MaskStoreScreen extends StatelessWidget {
     return Center(
       child: Text(
         '검색 결과가 없습니다.',
-        style: TextStyle(fontSize: 16, color: isDarkMode ? Colors.white : Colors.grey.shade600),
-      ),
-    );
-  }
-
-  Widget _buildStoreList(MaskStoreViewModel viewModel, bool isDarkMode) {
-    return RefreshIndicator(
-      onRefresh: viewModel.refreshStores,
-      child: ListView.builder(
-        controller: viewModel.scrollController,
-        itemCount: viewModel.state.stores.length,
-        itemBuilder: (context, index) {
-          final store = viewModel.state.stores[index];
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Card(
-              color: isDarkMode ? Colors.grey.shade800.withOpacity(0.9) : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              elevation: 8,
-              shadowColor: Colors.black.withOpacity(0.2),
-              child: StoreItem(maskStore: store),
-            ),
-          );
-        },
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: isDarkMode ? Colors.white : Colors.grey.shade600),
       ),
     );
   }
@@ -168,17 +171,17 @@ class MaskStoreScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: Text('거리 순', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+                title: Text('거리 순', style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black)),
                 onTap: () {
                   viewModel.sortByDistance();
-                  context.pop(context);
+                  context.pop();
                 },
               ),
               ListTile(
-                title: Text('재고 순', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+                title: Text('재고 순', style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black)),
                 onTap: () {
                   viewModel.sortByStock();
-                  context.pop(context);
+                  context.pop();
                 },
               ),
             ],
