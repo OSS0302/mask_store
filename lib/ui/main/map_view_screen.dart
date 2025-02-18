@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'dart:async';
 
 class MapViewScreen extends StatefulWidget {
   @override
@@ -11,7 +13,10 @@ class _MapViewScreenState extends State<MapViewScreen> {
   GoogleMapController? _mapController;
   LatLng _currentPosition = const LatLng(37.7749, -122.4194);
   final Set<Marker> _markers = {};
+  final List<Map<String, dynamic>> _pharmacies = [];
+  final Completer<GoogleMapController> _controller = Completer();
   bool _isDarkMode = false;
+  String _searchQuery = "";
 
   @override
   void initState() {
@@ -21,13 +26,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
-
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.deniedForever) return;
@@ -51,41 +50,55 @@ class _MapViewScreenState extends State<MapViewScreen> {
   }
 
   void _loadPharmacyMarkers() {
-    List<LatLng> pharmacyLocations = [
-      LatLng(37.7749, -122.4192),
-      LatLng(37.7755, -122.4184),
-      LatLng(37.7760, -122.4201),
+    List<Map<String, dynamic>> pharmacies = [
+      {'name': '약국 1', 'location': LatLng(37.7749, -122.4192), 'stock': '마스크 재고 있음'},
+      {'name': '약국 2', 'location': LatLng(37.7755, -122.4184), 'stock': '재고 부족'},
+      {'name': '약국 3', 'location': LatLng(37.7760, -122.4201), 'stock': '마스크 충분'},
     ];
-
-    for (var i = 0; i < pharmacyLocations.length; i++) {
-      _markers.add(
-        Marker(
-          markerId: MarkerId('pharmacy_$i'),
-          position: pharmacyLocations[i],
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: InfoWindow(
-            title: '약국 ${i + 1}',
-            snippet: '마스크 재고 있음',
-            onTap: () => _showPharmacyDetails('약국 ${i + 1}'),
+    setState(() {
+      _pharmacies.addAll(pharmacies);
+      for (var i = 0; i < pharmacies.length; i++) {
+        _markers.add(
+          Marker(
+            markerId: MarkerId('pharmacy_$i'),
+            position: pharmacies[i]['location'],
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            infoWindow: InfoWindow(
+              title: pharmacies[i]['name'],
+              snippet: pharmacies[i]['stock'],
+              onTap: () => _showPharmacyDetails(pharmacies[i]),
+            ),
           ),
-        ),
-      );
-    }
+        );
+      }
+    });
   }
 
-  void _showPharmacyDetails(String pharmacyName) {
-    showDialog(
+  void _showPharmacyDetails(Map<String, dynamic> pharmacy) {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(pharmacyName),
-        content: const Text('이곳에서 마스크를 구매할 수 있습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
-          ),
-        ],
+      builder: (context) => Container(
+        padding: EdgeInsets.all(16),
+        height: 200,
+        child: Column(
+          children: [
+            Text(pharmacy['name'], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            SizedBox(height: 10),
+            Text(pharmacy['stock']),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _navigateToPharmacy(pharmacy['location']),
+              child: Text('경로 안내'),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  void _navigateToPharmacy(LatLng destination) {
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(destination, 16),
     );
   }
 
@@ -103,13 +116,75 @@ class _MapViewScreenState extends State<MapViewScreen> {
           ),
         ],
       ),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(target: _currentPosition, zoom: 14),
-        onMapCreated: (controller) => _mapController = controller,
-        markers: _markers,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: false,
-        mapType: _isDarkMode ? MapType.hybrid : MapType.normal,
+      body: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(target: _currentPosition, zoom: 14),
+            onMapCreated: (controller) {
+              _mapController = controller;
+              _controller.complete(controller);
+            },
+            markers: _markers,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            mapType: _isDarkMode ? MapType.hybrid : MapType.normal,
+          ),
+          Positioned(
+            top: 10,
+            left: 10,
+            right: 10,
+            child: Card(
+              elevation: 5,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: '약국 검색',
+                    border: InputBorder.none,
+                    icon: Icon(Icons.search),
+                  ),
+                  onChanged: (query) {
+                    setState(() => _searchQuery = query);
+                  },
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 10,
+            left: 10,
+            right: 10,
+            child: SizedBox(
+              height: 120,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: _pharmacies
+                    .where((p) => p['name'].contains(_searchQuery))
+                    .map((pharmacy) => GestureDetector(
+                  onTap: () => _navigateToPharmacy(pharmacy['location']),
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    child: Container(
+                      width: 200,
+                      padding: EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(pharmacy['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 5),
+                          Text(pharmacy['stock']),
+                        ],
+                      ),
+                    ),
+                  ),
+                ))
+                    .toList(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
