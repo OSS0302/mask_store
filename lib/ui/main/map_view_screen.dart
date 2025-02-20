@@ -15,6 +15,8 @@ class _MapViewScreenState extends State<MapViewScreen> {
   final Set<Marker> _markers = {};
   final List<Map<String, dynamic>> _pharmacies = [];
   final Completer<GoogleMapController> _controller = Completer();
+  final List<LatLng> _polylineCoordinates = [];
+  PolylinePoints polylinePoints = PolylinePoints();
   bool _isDarkMode = false;
   String _searchQuery = "";
 
@@ -74,21 +76,41 @@ class _MapViewScreenState extends State<MapViewScreen> {
     });
   }
 
+  Future<void> _createRoute(LatLng destination) async {
+    _polylineCoordinates.clear();
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      'YOUR_GOOGLE_MAPS_API_KEY',
+      PointLatLng(_currentPosition.latitude, _currentPosition.longitude),
+      PointLatLng(destination.latitude, destination.longitude),
+    );
+    if (result.points.isNotEmpty) {
+      result.points.forEach((PointLatLng point) {
+        _polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      });
+      setState(() {});
+    }
+  }
+
   void _showPharmacyDetails(Map<String, dynamic> pharmacy) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
         padding: EdgeInsets.all(16),
-        height: 200,
+        height: 240,
         child: Column(
           children: [
-            Text(pharmacy['name'], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(pharmacy['name'], style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             SizedBox(height: 10),
             Text(pharmacy['stock']),
             SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _navigateToPharmacy(pharmacy['location']),
-              child: Text('경로 안내'),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await _createRoute(pharmacy['location']);
+                _navigateToPharmacy(pharmacy['location']);
+              },
+              icon: Icon(Icons.directions),
+              label: Text('경로 안내'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             ),
           ],
         ),
@@ -125,6 +147,14 @@ class _MapViewScreenState extends State<MapViewScreen> {
               _controller.complete(controller);
             },
             markers: _markers,
+            polylines: {
+              Polyline(
+                polylineId: PolylineId("route"),
+                color: Colors.blue,
+                width: 5,
+                points: _polylineCoordinates,
+              ),
+            },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             mapType: _isDarkMode ? MapType.hybrid : MapType.normal,
@@ -156,7 +186,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
             left: 10,
             right: 10,
             child: SizedBox(
-              height: 120,
+              height: 140,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: _pharmacies
@@ -167,14 +197,14 @@ class _MapViewScreenState extends State<MapViewScreen> {
                     elevation: 4,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     child: Container(
-                      width: 200,
+                      width: 220,
                       padding: EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(pharmacy['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text(pharmacy['name'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           SizedBox(height: 5),
-                          Text(pharmacy['stock']),
+                          Text(pharmacy['stock'], style: TextStyle(color: Colors.grey[600])),
                         ],
                       ),
                     ),
