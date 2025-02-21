@@ -91,6 +91,15 @@ class _MapViewScreenState extends State<MapViewScreen> {
     }
   }
 
+  void _resetRoute() {
+    setState(() {
+      _polylineCoordinates.clear();
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(_currentPosition, 14),
+      );
+    });
+  }
+
   void _showPharmacyDetails(Map<String, dynamic> pharmacy) {
     showModalBottomSheet(
       context: context,
@@ -111,6 +120,13 @@ class _MapViewScreenState extends State<MapViewScreen> {
               icon: Icon(Icons.directions),
               label: Text('경로 안내'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+            ),
+            SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: _resetRoute,
+              icon: Icon(Icons.clear),
+              label: Text('경로 리셋'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             ),
           ],
         ),
@@ -135,6 +151,10 @@ class _MapViewScreenState extends State<MapViewScreen> {
           IconButton(
             icon: Icon(Icons.my_location),
             onPressed: _getCurrentLocation,
+          ),
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _resetRoute,
           ),
         ],
       ),
