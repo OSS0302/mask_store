@@ -19,6 +19,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
   PolylinePoints polylinePoints = PolylinePoints();
   bool _isDarkMode = false;
   String _searchQuery = "";
+  MapType _currentMapType = MapType.normal;
 
   @override
   void initState() {
@@ -100,6 +101,12 @@ class _MapViewScreenState extends State<MapViewScreen> {
     });
   }
 
+  void _toggleMapType() {
+    setState(() {
+      _currentMapType = _currentMapType == MapType.normal ? MapType.hybrid : MapType.normal;
+    });
+  }
+
   void _showPharmacyDetails(Map<String, dynamic> pharmacy) {
     showModalBottomSheet(
       context: context,
@@ -156,6 +163,10 @@ class _MapViewScreenState extends State<MapViewScreen> {
             icon: Icon(Icons.refresh),
             onPressed: _resetRoute,
           ),
+          IconButton(
+            icon: Icon(Icons.map),
+            onPressed: _toggleMapType,
+          ),
         ],
       ),
       body: Stack(
@@ -177,7 +188,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
             },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
-            mapType: _isDarkMode ? MapType.hybrid : MapType.normal,
+            mapType: _currentMapType,
           ),
           Positioned(
             top: 10,
