@@ -20,12 +20,46 @@ class _MapViewScreenState extends State<MapViewScreen> {
   bool _isDarkMode = false;
   String _searchQuery = "";
   MapType _currentMapType = MapType.normal;
+  StreamSubscription<Position>? _positionStream;
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
     _loadPharmacyMarkers();
+    _startLocationUpdates();
+  }
+
+  @override
+  void dispose() {
+    _positionStream?.cancel();
+    super.dispose();
+  }
+
+  void _startLocationUpdates() {
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10),
+    ).listen((Position position) {
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+        _updateCurrentLocationMarker();
+      });
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(_currentPosition),
+      );
+    });
+  }
+
+  void _updateCurrentLocationMarker() {
+    _markers.removeWhere((marker) => marker.markerId.value == 'current_location');
+    _markers.add(
+      Marker(
+        markerId: MarkerId('current_location'),
+        position: _currentPosition,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: InfoWindow(title: '내 위치'),
+      ),
+    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -38,18 +72,11 @@ class _MapViewScreenState extends State<MapViewScreen> {
     Position position = await Geolocator.getCurrentPosition();
     setState(() {
       _currentPosition = LatLng(position.latitude, position.longitude);
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentPosition, 14),
-      );
-      _markers.add(
-        Marker(
-          markerId: MarkerId('current_location'),
-          position: _currentPosition,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          infoWindow: InfoWindow(title: '내 위치'),
-        ),
-      );
+      _updateCurrentLocationMarker();
     });
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(_currentPosition, 14),
+    );
   }
 
   void _loadPharmacyMarkers() {
