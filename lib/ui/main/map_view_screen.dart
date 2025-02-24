@@ -21,6 +21,8 @@ class _MapViewScreenState extends State<MapViewScreen> {
   String _searchQuery = "";
   MapType _currentMapType = MapType.normal;
   StreamSubscription<Position>? _positionStream;
+  String _distance = "";
+  String _duration = "";
 
   @override
   void initState() {
@@ -115,13 +117,18 @@ class _MapViewScreenState extends State<MapViewScreen> {
       result.points.forEach((PointLatLng point) {
         _polylineCoordinates.add(LatLng(point.latitude, point.longitude));
       });
-      setState(() {});
+      setState(() {
+        _distance = (result.distance ?? 0).toStringAsFixed(1) + " km";
+        _duration = (result.duration ?? 0).toStringAsFixed(0) + " min";
+      });
     }
   }
 
   void _resetRoute() {
     setState(() {
       _polylineCoordinates.clear();
+      _distance = "";
+      _duration = "";
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(_currentPosition, 14),
       );
@@ -139,13 +146,17 @@ class _MapViewScreenState extends State<MapViewScreen> {
       context: context,
       builder: (context) => Container(
         padding: EdgeInsets.all(16),
-        height: 240,
+        height: 280,
         child: Column(
           children: [
             Text(pharmacy['name'], style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             SizedBox(height: 10),
             Text(pharmacy['stock']),
-            SizedBox(height: 20),
+            if (_distance.isNotEmpty && _duration.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text('거리: $_distance, 예상 시간: $_duration'),
+              ),
             ElevatedButton.icon(
               onPressed: () async {
                 await _createRoute(pharmacy['location']);
