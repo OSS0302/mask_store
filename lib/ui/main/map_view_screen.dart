@@ -108,19 +108,26 @@ class _MapViewScreenState extends State<MapViewScreen> {
 
   Future<void> _createRoute(LatLng destination) async {
     _polylineCoordinates.clear();
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-      'YOUR_GOOGLE_MAPS_API_KEY',
-      PointLatLng(_currentPosition.latitude, _currentPosition.longitude),
-      PointLatLng(destination.latitude, destination.longitude),
+
+    PolylineRequest request = PolylineRequest(
+      origin: PointLatLng(_currentPosition.latitude, _currentPosition.longitude),
+      destination: PointLatLng(destination.latitude, destination.longitude),
+      travelMode: TravelMode.driving,
+      apiKey: 'YOUR_GOOGLE_MAPS_API_KEY', mode: null,
     );
+
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(request: request);
+
     if (result.points.isNotEmpty) {
-      result.points.forEach((PointLatLng point) {
+      for (var point in result.points) {
         _polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-      });
+      }
       setState(() {
-        _distance = (result.distance ?? 0).toStringAsFixed(1) + " km";
-        _duration = (result.duration ?? 0).toStringAsFixed(0) + " min";
+        _distance = result.distance ?? "거리 정보를 사용할 수 없습니다.";
+        _duration = result.duration ?? "시간 정보를 사용할 수 없습니다.";
       });
+    } else {
+      print('경로를 찾을 수 없습니다.');
     }
   }
 
