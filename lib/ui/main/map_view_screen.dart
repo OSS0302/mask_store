@@ -1,35 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
+import 'dart:math';
 
-class MapViewScreen extends StatefulWidget {
+class MapScreen extends StatefulWidget {
   @override
-  _MapViewScreenState createState() => _MapViewScreenState();
+  _MapScreenState createState() => _MapScreenState();
 }
 
-class _MapViewScreenState extends State<MapViewScreen> {
+class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   LatLng _currentPosition = const LatLng(37.7749, -122.4194);
   final Set<Marker> _markers = {};
-  final List<Map<String, dynamic>> _pharmacies = [];
   final Completer<GoogleMapController> _controller = Completer();
-  final List<LatLng> _polylineCoordinates = [];
-  PolylinePoints polylinePoints = PolylinePoints();
-  bool _isDarkMode = false;
-  String _searchQuery = "";
   MapType _currentMapType = MapType.normal;
   StreamSubscription<Position>? _positionStream;
-  String _distance = "";
-  String _duration = "";
+  final List<Map<String, dynamic>> _pharmacies = [];
+  String _searchQuery = "";
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
-    _loadPharmacyMarkers();
     _startLocationUpdates();
+    _generatePharmacyMarkers();
   }
 
   @override
@@ -81,120 +77,50 @@ class _MapViewScreenState extends State<MapViewScreen> {
     );
   }
 
-  void _loadPharmacyMarkers() {
-    List<Map<String, dynamic>> pharmacies = [
-      {'name': '약국 1', 'location': LatLng(37.7749, -122.4192), 'stock': '마스크 재고 있음'},
-      {'name': '약국 2', 'location': LatLng(37.7755, -122.4184), 'stock': '재고 부족'},
-      {'name': '약국 3', 'location': LatLng(37.7760, -122.4201), 'stock': '마스크 충분'},
-    ];
-    setState(() {
-      _pharmacies.addAll(pharmacies);
-      for (var i = 0; i < pharmacies.length; i++) {
-        _markers.add(
-          Marker(
-            markerId: MarkerId('pharmacy_$i'),
-            position: pharmacies[i]['location'],
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-            infoWindow: InfoWindow(
-              title: pharmacies[i]['name'],
-              snippet: pharmacies[i]['stock'],
-              onTap: () => _showPharmacyDetails(pharmacies[i]),
-            ),
-          ),
-        );
-      }
-    });
-  }
-
-  Future<void> _createRoute(LatLng destination) async {
-    _polylineCoordinates.clear();
-
-    PolylineRequest request = PolylineRequest(
-      origin: PointLatLng(_currentPosition.latitude, _currentPosition.longitude),
-      destination: PointLatLng(destination.latitude, destination.longitude),
-      travelMode: TravelMode.driving,
-      apiKey: 'YOUR_GOOGLE_MAPS_API_KEY', mode: null,
-    );
-
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(request: request);
-
-    if (result.points.isNotEmpty) {
-      for (var point in result.points) {
-        _polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-      }
-      setState(() {
-        _distance = result.distance ?? "거리 정보를 사용할 수 없습니다.";
-        _duration = result.duration ?? "시간 정보를 사용할 수 없습니다.";
-      });
-    } else {
-      print('경로를 찾을 수 없습니다.');
-    }
-  }
-
-  void _resetRoute() {
-    setState(() {
-      _polylineCoordinates.clear();
-      _distance = "";
-      _duration = "";
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentPosition, 14),
-      );
-    });
-  }
-
   void _toggleMapType() {
     setState(() {
       _currentMapType = _currentMapType == MapType.normal ? MapType.hybrid : MapType.normal;
     });
   }
 
-  void _showPharmacyDetails(Map<String, dynamic> pharmacy) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        height: 280,
-        child: Column(
-          children: [
-            Text(pharmacy['name'], style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            SizedBox(height: 10),
-            Text(pharmacy['stock']),
-            if (_distance.isNotEmpty && _duration.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Text('거리: $_distance, 예상 시간: $_duration'),
-              ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await _createRoute(pharmacy['location']);
-                _navigateToPharmacy(pharmacy['location']);
-              },
-              icon: Icon(Icons.directions),
-              label: Text('경로 안내'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-            ),
-            SizedBox(height: 10),
-            ElevatedButton.icon(
-              onPressed: _resetRoute,
-              icon: Icon(Icons.clear),
-              label: Text('경로 리셋'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            ),
-          ],
+  void _generatePharmacyMarkers() {
+    Random random = Random();
+    for (int i = 0; i < 5; i++) {
+      double latOffset = (random.nextDouble() - 0.5) / 500;
+      double lngOffset = (random.nextDouble() - 0.5) / 500;
+      LatLng pharmacyLocation = LatLng(_currentPosition.latitude + latOffset, _currentPosition.longitude + lngOffset);
+
+      Map<String, dynamic> pharmacy = {
+        'name': '약국 ${i + 1}',
+        'location': pharmacyLocation,
+        'stock': random.nextBool() ? '마스크 재고 있음' : '재고 부족'
+      };
+
+      _pharmacies.add(pharmacy);
+      _markers.add(
+        Marker(
+          markerId: MarkerId('pharmacy_$i'),
+          position: pharmacyLocation,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: InfoWindow(
+            title: pharmacy['name'],
+            snippet: pharmacy['stock'],
+            onTap: () => _launchMaps(pharmacyLocation),
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
-  void _navigateToPharmacy(LatLng destination) {
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(destination, 16),
-    );
+  void _launchMaps(LatLng destination) async {
+    String url = "https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}";
+    if (await canLaunch(url)) {
+      await launch(url);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    _isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         title: const Text('주변 약국'),
@@ -203,10 +129,6 @@ class _MapViewScreenState extends State<MapViewScreen> {
           IconButton(
             icon: Icon(Icons.my_location),
             onPressed: _getCurrentLocation,
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _resetRoute,
           ),
           IconButton(
             icon: Icon(Icons.map),
@@ -223,14 +145,6 @@ class _MapViewScreenState extends State<MapViewScreen> {
               _controller.complete(controller);
             },
             markers: _markers,
-            polylines: {
-              Polyline(
-                polylineId: PolylineId("route"),
-                color: Colors.blue,
-                width: 5,
-                points: _polylineCoordinates,
-              ),
-            },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             mapType: _currentMapType,
@@ -268,7 +182,11 @@ class _MapViewScreenState extends State<MapViewScreen> {
                 children: _pharmacies
                     .where((p) => p['name'].contains(_searchQuery))
                     .map((pharmacy) => GestureDetector(
-                  onTap: () => _navigateToPharmacy(pharmacy['location']),
+                  onTap: () {
+                    _mapController?.animateCamera(
+                      CameraUpdate.newLatLngZoom(pharmacy['location'], 16),
+                    );
+                  },
                   child: Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
