@@ -6,6 +6,7 @@ class CustomerSupportScreen extends StatelessWidget {
   const CustomerSupportScreen({Key? key}) : super(key: key);
 
   final String supportEmail = 'support@maskstore.com';
+  final String supportPhone = '123-456-7890';
 
   @override
   Widget build(BuildContext context) {
@@ -14,18 +15,23 @@ class CustomerSupportScreen extends StatelessWidget {
     final List<Map<String, dynamic>> supportOptions = [
       {
         'title': '문의하기',
-        'icon': Icons.chat_bubble_outline,
+        'icon': Icons.chat,
         'action': (BuildContext context) => _handleChat(context)
       },
       {
         'title': 'FAQ 보기',
-        'icon': Icons.help_outline,
+        'icon': Icons.help,
         'action': (BuildContext context) => _handleFaq(context)
       },
       {
         'title': '이메일 보내기',
-        'icon': Icons.email_outlined,
+        'icon': Icons.email,
         'action': (BuildContext context) => _handleEmail(context)
+      },
+      {
+        'title': '전화 상담',
+        'icon': Icons.phone,
+        'action': (BuildContext context) => _handleCall(context)
       },
     ];
 
@@ -66,7 +72,7 @@ class CustomerSupportScreen extends StatelessWidget {
                     return GestureDetector(
                       onTap: () => (option['action'] as Function)(context),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(20),
@@ -104,27 +110,6 @@ class CustomerSupportScreen extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(height: 30),
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.headset_mic_outlined,
-                      size: 120,
-                      color: isDarkMode ? Colors.tealAccent : Colors.teal.shade800,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '언제든지 고객 지원에 문의하세요!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: isDarkMode ? Colors.white70 : Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -157,6 +142,10 @@ class CustomerSupportScreen extends StatelessWidget {
                 title: Text('Q2: 반품 정책은 어떻게 되나요?'),
                 subtitle: Text('상품 수령 후 7일 이내에 반품 요청이 가능합니다.'),
               ),
+              ListTile(
+                title: Text('Q3: 마스크 사이즈는 어떻게 선택하나요?'),
+                subtitle: Text('상품 설명을 참고하거나 고객센터에 문의하세요.'),
+              ),
             ],
           ),
           actions: [
@@ -182,6 +171,17 @@ class CustomerSupportScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('이메일 앱을 열 수 없습니다. 이메일 주소가 복사되었습니다: $supportEmail'),
+        ),
+      );
+    }
+  }
+
+  void _handleCall(BuildContext context) async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: supportPhone);
+    if (!await launchUrl(phoneUri)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('전화 앱을 열 수 없습니다. 직접 전화해 주세요: $supportPhone'),
         ),
       );
     }
