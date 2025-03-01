@@ -7,6 +7,7 @@ class CustomerSupportScreen extends StatelessWidget {
 
   final String supportEmail = 'support@maskstore.com';
   final String supportPhone = '123-456-7890';
+  final String supportKakao = 'https://pf.kakao.com/_supportchat';
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +33,11 @@ class CustomerSupportScreen extends StatelessWidget {
         'title': '전화 상담',
         'icon': Icons.phone,
         'action': (BuildContext context) => _handleCall(context)
+      },
+      {
+        'title': '카카오톡 상담',
+        'icon': Icons.message,
+        'action': (BuildContext context) => _handleKakao(context)
       },
     ];
 
@@ -142,10 +148,6 @@ class CustomerSupportScreen extends StatelessWidget {
                 title: Text('Q2: 반품 정책은 어떻게 되나요?'),
                 subtitle: Text('상품 수령 후 7일 이내에 반품 요청이 가능합니다.'),
               ),
-              ListTile(
-                title: Text('Q3: 마스크 사이즈는 어떻게 선택하나요?'),
-                subtitle: Text('상품 설명을 참고하거나 고객센터에 문의하세요.'),
-              ),
             ],
           ),
           actions: [
@@ -165,7 +167,6 @@ class CustomerSupportScreen extends StatelessWidget {
       path: supportEmail,
       query: 'subject=고객 문의&body=안녕하세요,',
     );
-
     if (!await launchUrl(emailUri)) {
       Clipboard.setData(ClipboardData(text: supportEmail));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -182,6 +183,16 @@ class CustomerSupportScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('전화 앱을 열 수 없습니다. 직접 전화해 주세요: $supportPhone'),
+        ),
+      );
+    }
+  }
+
+  void _handleKakao(BuildContext context) async {
+    if (!await launchUrl(Uri.parse(supportKakao))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('카카오톡을 열 수 없습니다.'),
         ),
       );
     }
