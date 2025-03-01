@@ -45,6 +45,7 @@ dependencies:
   url_launcher: ^6.3.1
   google_maps_flutter: ^2.10.0
   flutter_polyline_points: ^2.0.0
+  freezed: ^3.0.0
 
 
 
