@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class CustomerSupportScreen extends StatefulWidget {
@@ -16,7 +16,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   final String supportPhone = '123-456-7890';
   final String supportKakao = 'https://pf.kakao.com/_supportchat';
   final String supportWebsite = 'https://www.maskstore.com/support';
-  List<String> inquiryHistory = [];
+  List<Map<String, String>> inquiryHistory = [];
 
   @override
   void initState() {
@@ -26,17 +26,29 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
   Future<void> _loadInquiryHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      inquiryHistory = prefs.getStringList('inquiryHistory') ?? [];
-    });
+    final List<String>? storedHistory = prefs.getStringList('inquiryHistory');
+    if (storedHistory != null) {
+      setState(() {
+        inquiryHistory = storedHistory.map((e) => jsonDecode(e) as Map<String, String>).toList();
+      });
+    }
   }
 
   Future<void> _saveInquiry(String inquiry) async {
     final prefs = await SharedPreferences.getInstance();
+    final newInquiry = {'inquiry': inquiry, 'date': DateTime.now().toString()};
     setState(() {
-      inquiryHistory.insert(0, inquiry);
+      inquiryHistory.insert(0, newInquiry);
     });
-    await prefs.setStringList('inquiryHistory', inquiryHistory);
+    await prefs.setStringList('inquiryHistory', inquiryHistory.map((e) => jsonEncode(e)).toList());
+  }
+
+  Future<void> _clearInquiryHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      inquiryHistory.clear();
+    });
+    await prefs.remove('inquiryHistory');
   }
 
   final List<Map<String, dynamic>> supportOptions = [
@@ -173,11 +185,16 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
           child: ListView.builder(
             itemCount: inquiryHistory.length,
             itemBuilder: (context, index) => ListTile(
-              title: Text(inquiryHistory[index]),
+              title: Text(inquiryHistory[index]['inquiry']!),
+              subtitle: Text(inquiryHistory[index]['date']!),
             ),
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () => _clearInquiryHistory(),
+            child: const Text('기록 삭제'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('닫기'),
@@ -185,24 +202,5 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         ],
       ),
     );
-  }
-
-  void _handleEmail(BuildContext context, Function saveInquiry) async {
-    final Uri emailUri = Uri(
-      scheme: 'mailto',
-      path: supportEmail,
-      query: 'subject=고객 문의&body=안녕하세요,',
-    );
-
-    saveInquiry('이메일 문의: $supportEmail');
-
-    if (!await launchUrl(emailUri)) {
-      Clipboard.setData(ClipboardData(text: supportEmail));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('이메일 앱을 열 수 없습니다. 이메일 주소가 복사되었습니다: $supportEmail'),
-        ),
-      );
-    }
   }
 }
