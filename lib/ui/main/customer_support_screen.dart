@@ -51,43 +51,88 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     await prefs.remove('inquiryHistory');
   }
 
-  final List<Map<String, dynamic>> supportOptions = [
-    {
-      'title': '문의하기',
-      'icon': Icons.chat,
-      'action': (BuildContext context, Function saveInquiry) => _handleChat(context, saveInquiry)
-    },
-    {
-      'title': 'FAQ 보기',
-      'icon': Icons.help,
-      'action': (BuildContext context, Function saveInquiry) => _handleFaq(context)
-    },
-    {
-      'title': '이메일 보내기',
-      'icon': Icons.email,
-      'action': (BuildContext context, Function saveInquiry) => _handleEmail(context, saveInquiry)
-    },
-    {
-      'title': '전화 상담',
-      'icon': Icons.phone,
-      'action': (BuildContext context, Function saveInquiry) => _handleCall(context)
-    },
-    {
-      'title': '카카오톡 상담',
-      'icon': Icons.message,
-      'action': (BuildContext context, Function saveInquiry) => _handleKakao(context)
-    },
-    {
-      'title': '웹사이트 방문',
-      'icon': Icons.public,
-      'action': (BuildContext context, Function saveInquiry) => _handleWebsite(context)
-    },
-    {
-      'title': '문의 기록 보기',
-      'icon': Icons.history,
-      'action': (BuildContext context, Function saveInquiry) => _handleInquiryHistory(context)
-    },
-  ];
+  void _handleChat(BuildContext context, Function saveInquiry) {
+    saveInquiry('채팅 문의');
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('채팅 기능 준비 중입니다.')));
+  }
+
+  void _handleFaq(BuildContext context) {
+    launchUrl(Uri.parse(supportWebsite));
+  }
+
+  void _handleEmail(BuildContext context, Function saveInquiry) async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: supportEmail,
+      query: 'subject=고객 문의&body=안녕하세요,',
+    );
+
+    saveInquiry('이메일 문의: $supportEmail');
+
+    if (!await launchUrl(emailUri)) {
+      Clipboard.setData(ClipboardData(text: supportEmail));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('이메일 앱을 열 수 없습니다. 이메일 주소가 복사되었습니다: $supportEmail')),
+      );
+    }
+  }
+
+  void _handleCall(BuildContext context) async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: supportPhone);
+    if (!await launchUrl(phoneUri)) {
+      Clipboard.setData(ClipboardData(text: supportPhone));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('전화를 걸 수 없습니다. 번호가 복사되었습니다: $supportPhone')),
+      );
+    }
+  }
+
+  void _handleKakao(BuildContext context) async {
+    if (!await launchUrl(Uri.parse(supportKakao))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('카카오톡을 열 수 없습니다. 링크를 복사했습니다: $supportKakao')),
+      );
+    }
+  }
+
+  void _handleWebsite(BuildContext context) async {
+    if (!await launchUrl(Uri.parse(supportWebsite))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('웹사이트를 열 수 없습니다. 링크를 복사했습니다: $supportWebsite')),
+      );
+    }
+  }
+
+  void _handleInquiryHistory(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('문의 기록'),
+        content: SizedBox(
+          height: 200,
+          child: ListView.builder(
+            itemCount: inquiryHistory.length,
+            itemBuilder: (context, index) => ListTile(
+              title: Text(inquiryHistory[index]['inquiry']!),
+              subtitle: Text(inquiryHistory[index]['date']!),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _clearInquiryHistory(),
+            child: const Text('기록 삭제'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  final List<Map<String, dynamic>> supportOptions = [];
 
   @override
   Widget build(BuildContext context) {
@@ -129,40 +174,9 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                     final option = supportOptions[index];
                     return GestureDetector(
                       onTap: () => (option['action'] as Function)(context, _saveInquiry),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              option['icon'] as IconData?,
-                              size: 36,
-                              color: isDarkMode ? Colors.tealAccent : Colors.teal.shade800,
-                            ),
-                            const SizedBox(width: 16),
-                            Text(
-                              option['title'] as String,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: isDarkMode ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: ListTile(
+                        leading: Icon(option['icon'] as IconData?),
+                        title: Text(option['title'] as String),
                       ),
                     );
                   },
@@ -171,35 +185,6 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _handleInquiryHistory(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('문의 기록'),
-        content: SizedBox(
-          height: 200,
-          child: ListView.builder(
-            itemCount: inquiryHistory.length,
-            itemBuilder: (context, index) => ListTile(
-              title: Text(inquiryHistory[index]['inquiry']!),
-              subtitle: Text(inquiryHistory[index]['date']!),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => _clearInquiryHistory(),
-            child: const Text('기록 삭제'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
-          ),
-        ],
       ),
     );
   }
