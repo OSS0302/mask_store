@@ -132,7 +132,38 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     );
   }
 
-  final List<Map<String, dynamic>> supportOptions = [];
+  final List<Map<String, dynamic>> supportOptions = [
+    {
+      'title': '채팅 문의',
+      'icon': Icons.chat,
+      'action': _handleChat,
+    },
+    {
+      'title': '이메일 문의',
+      'icon': Icons.email,
+      'action': _handleEmail,
+    },
+    {
+      'title': '전화 문의',
+      'icon': Icons.phone,
+      'action': _handleCall,
+    },
+    {
+      'title': '카카오톡 문의',
+      'icon': Icons.message,
+      'action': _handleKakao,
+    },
+    {
+      'title': 'FAQ',
+      'icon': Icons.help,
+      'action': _handleFaq,
+    },
+    {
+      'title': '웹사이트',
+      'icon': Icons.web,
+      'action': _handleWebsite,
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +198,9 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
+              if (inquiryHistory.isNotEmpty)
+                Text('가장 최근: ${inquiryHistory[0]['inquiry']} - ${inquiryHistory[0]['date']}'),
+              const SizedBox(height: 20),
               Expanded(
                 child: ListView.builder(
                   itemCount: supportOptions.length,
@@ -185,6 +219,10 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
             ],
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _handleChat(context, _saveInquiry), // 새 문의 제출
+        child: const Icon(Icons.add),
       ),
     );
   }
