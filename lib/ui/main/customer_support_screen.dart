@@ -56,8 +56,9 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('채팅 기능 준비 중입니다.')));
   }
 
-  void _handleFaq(BuildContext context) {
-    launchUrl(Uri.parse(supportWebsite));
+  void _handleFaq(BuildContext context, Function saveInquiry) {
+    saveInquiry('FAQ 확인');
+    _launchURL(supportWebsite);
   }
 
   void _handleEmail(BuildContext context, Function saveInquiry) async {
@@ -77,8 +78,10 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     }
   }
 
-  void _handleCall(BuildContext context) async {
+  void _handleCall(BuildContext context, Function saveInquiry) async {
     final Uri phoneUri = Uri(scheme: 'tel', path: supportPhone);
+    saveInquiry('전화 문의: $supportPhone');
+
     if (!await launchUrl(phoneUri)) {
       Clipboard.setData(ClipboardData(text: supportPhone));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,18 +90,21 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     }
   }
 
-  void _handleKakao(BuildContext context) async {
-    if (!await launchUrl(Uri.parse(supportKakao))) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('카카오톡을 열 수 없습니다. 링크를 복사했습니다: $supportKakao')),
-      );
-    }
+  void _handleKakao(BuildContext context, Function saveInquiry) async {
+    saveInquiry('카카오톡 문의');
+    _launchURL(supportKakao);
   }
 
-  void _handleWebsite(BuildContext context) async {
-    if (!await launchUrl(Uri.parse(supportWebsite))) {
+  void _handleWebsite(BuildContext context, Function saveInquiry) async {
+    saveInquiry('웹사이트 방문');
+    _launchURL(supportWebsite);
+  }
+
+  Future<void> _launchURL(String url) async {
+    if (!await launchUrl(Uri.parse(url))) {
+      Clipboard.setData(ClipboardData(text: url));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('웹사이트를 열 수 없습니다. 링크를 복사했습니다: $supportWebsite')),
+        SnackBar(content: Text('링크를 열 수 없습니다. URL이 복사되었습니다: $url')),
       );
     }
   }
@@ -132,38 +138,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     );
   }
 
-  final List<Map<String, dynamic>> supportOptions = [
-    {
-      'title': '채팅 문의',
-      'icon': Icons.chat,
-      'action': _handleChat,
-    },
-    {
-      'title': '이메일 문의',
-      'icon': Icons.email,
-      'action': _handleEmail,
-    },
-    {
-      'title': '전화 문의',
-      'icon': Icons.phone,
-      'action': _handleCall,
-    },
-    {
-      'title': '카카오톡 문의',
-      'icon': Icons.message,
-      'action': _handleKakao,
-    },
-    {
-      'title': 'FAQ',
-      'icon': Icons.help,
-      'action': _handleFaq,
-    },
-    {
-      'title': '웹사이트',
-      'icon': Icons.web,
-      'action': _handleWebsite,
-    },
-  ];
+  final List<Map<String, dynamic>> supportOptions = [];
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +196,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _handleChat(context, _saveInquiry), // 새 문의 제출
+        onPressed: () => _handleChat(context, _saveInquiry),
         child: const Icon(Icons.add),
       ),
     );
