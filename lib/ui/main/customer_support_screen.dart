@@ -92,21 +92,25 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
   void _handleKakao(BuildContext context, Function saveInquiry) async {
     saveInquiry('카카오톡 문의');
-    _launchURL(supportKakao);
+
+    final Uri kakaoUri = Uri.parse(supportKakao);
+
+    if (await canLaunchUrl(kakaoUri)) {
+      // 카카오톡 앱이 설치되어 있다면 실행
+      await launchUrl(kakaoUri);
+    } else {
+      // 카카오톡 앱이 없으면 웹사이트를 열거나 클립보드에 복사
+      Clipboard.setData(ClipboardData(text: supportKakao));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('카카오톡 앱을 찾을 수 없습니다. 링크가 복사되었습니다: $supportKakao')),
+      );
+    }
   }
+
 
   void _handleWebsite(BuildContext context, Function saveInquiry) async {
     saveInquiry('웹사이트 방문');
     _launchURL(supportWebsite);
-  }
-
-  Future<void> _launchURL(String url) async {
-    if (!await launchUrl(Uri.parse(url))) {
-      Clipboard.setData(ClipboardData(text: url));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('링크를 열 수 없습니다. URL이 복사되었습니다: $url')),
-      );
-    }
   }
 
   void _handleInquiryHistory(BuildContext context) {
@@ -196,9 +200,18 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _handleChat(context, _saveInquiry),
+        onPressed: () => _handleChat(context, _saveInquiry), // 새 문의 제출
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Future<void> _launchURL(String url) async {
+    if (!await launchUrl(Uri.parse(url))) {
+      Clipboard.setData(ClipboardData(text: url));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('링크를 열 수 없습니다. URL이 복사되었습니다: $url')),
+      );
+    }
   }
 }
