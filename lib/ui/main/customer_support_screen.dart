@@ -93,20 +93,38 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   void _handleKakao(BuildContext context, Function saveInquiry) async {
     saveInquiry('카카오톡 문의');
 
-    final Uri kakaoUri = Uri.parse(supportKakao);
+    final Uri kakaoAppUri = Uri.parse('kakaolink://home');
+    final Uri kakaoWebUri = Uri.parse(supportKakao);
+    final Uri playStoreUri = Uri.parse('https://play.google.com/store/apps/details?id=com.kakao.talk');
+    final Uri appStoreUri = Uri.parse('https://apps.apple.com/app/kakaotalk/id362057947');
 
-    if (await canLaunchUrl(kakaoUri)) {
-      // 카카오톡 앱이 설치되어 있다면 실행
-      await launchUrl(kakaoUri);
+    if (await canLaunchUrl(kakaoAppUri)) {
+      // 카카오톡 앱이 있으면 앱 실행
+      await launchUrl(kakaoAppUri);
+    } else if (await canLaunchUrl(kakaoWebUri)) {
+      // 앱이 없으면 웹사이트 열기
+      await launchUrl(kakaoWebUri);
     } else {
-      // 카카오톡 앱이 없으면 웹사이트를 열거나 클립보드에 복사
+      // 앱도 웹도 안 될 경우, 클립보드 복사 후 스토어로 이동 안내
       Clipboard.setData(ClipboardData(text: supportKakao));
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('카카오톡 앱을 찾을 수 없습니다. 링크가 복사되었습니다: $supportKakao')),
+        SnackBar(
+          content: Text('카카오톡을 열 수 없습니다. 링크를 복사했습니다: $supportKakao\n앱이 없다면 설치하세요.'),
+          action: SnackBarAction(
+            label: '설치하기',
+            onPressed: () async {
+              if (Theme.of(context).platform == TargetPlatform.android) {
+                await launchUrl(playStoreUri);
+              } else if (Theme.of(context).platform == TargetPlatform.iOS) {
+                await launchUrl(appStoreUri);
+              }
+            },
+          ),
+        ),
       );
     }
   }
-
 
   void _handleWebsite(BuildContext context, Function saveInquiry) async {
     saveInquiry('웹사이트 방문');
