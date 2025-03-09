@@ -78,15 +78,54 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     }
   }
 
-  void _handleCall(BuildContext context, Function saveInquiry) async {
+  void _handleCall(BuildContext context, Function saveInquiry, String supportPhone) async {
     final Uri phoneUri = Uri(scheme: 'tel', path: supportPhone);
-    saveInquiry('전화 문의: $supportPhone');
 
-    if (!await launchUrl(phoneUri)) {
-      Clipboard.setData(ClipboardData(text: supportPhone));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('전화를 걸 수 없습니다. 번호가 복사되었습니다: $supportPhone')),
-      );
+    // 사용자에게 전화 걸기 여부 확인
+    bool? confirmCall = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('전화 걸기'),
+          content: Text('고객센터 ($supportPhone)로 전화를 거시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('통화'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmCall == true) {
+      saveInquiry('전화 문의: $supportPhone');
+
+      try {
+        if (!await launchUrl(phoneUri)) {
+          throw '전화 걸기 실패';
+        }
+      } catch (e) {
+        Clipboard.setData(ClipboardData(text: supportPhone));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('전화를 걸 수 없습니다. 번호가 복사되었습니다: $supportPhone'),
+            action: SnackBarAction(
+              label: '전화 앱 열기',
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: supportPhone));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$supportPhone를 전화 앱에 붙여넣기하세요.')),
+                );
+              },
+            ),
+          ),
+        );
+      }
     }
   }
 
