@@ -56,9 +56,54 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('채팅 기능 준비 중입니다.')));
   }
 
-  void _handleFaq(BuildContext context, Function saveInquiry) {
+  void _handleFaq(BuildContext context, Function saveInquiry, String supportWebsite) async {
     saveInquiry('FAQ 확인');
-    _launchURL(supportWebsite);
+
+    final Uri faqUri = Uri.parse(supportWebsite);
+
+    // 로딩 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('FAQ 열기'),
+          content: const Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('FAQ 페이지를 여는 중입니다...')
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      if (await canLaunchUrl(faqUri)) {
+        await launchUrl(faqUri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'FAQ 페이지를 열 수 없습니다.';
+      }
+    } catch (e) {
+      Clipboard.setData(ClipboardData(text: supportWebsite));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('FAQ 페이지를 열 수 없습니다. URL이 복사되었습니다: $supportWebsite'),
+          action: SnackBarAction(
+            label: '브라우저 열기',
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: supportWebsite));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('$supportWebsite를 브라우저에 붙여넣기하세요.')),
+              );
+            },
+          ),
+        ),
+      );
+    } finally {
+      Navigator.of(context).pop(); // 로딩 팝업 닫기
+    }
   }
 
   void _handleEmail(BuildContext context, Function saveInquiry) async {
