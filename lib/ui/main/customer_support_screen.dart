@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class CustomerSupportScreen extends StatefulWidget {
   const CustomerSupportScreen({Key? key}) : super(key: key);
@@ -56,37 +57,73 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('채팅 기능 준비 중입니다.')));
   }
 
-  void _handleFaq(BuildContext context, Function saveInquiry, String supportWebsite) async {
+  void _handleFaq(BuildContext context, Function saveInquiry, String supportWebsite, {bool useInAppWebView = false}) async {
     saveInquiry('FAQ 확인');
 
     final Uri faqUri = Uri.parse(supportWebsite);
 
-    // 로딩 표시
+    // 1️⃣ 네트워크 상태 확인
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('인터넷 연결이 없습니다. 네트워크 상태를 확인하세요.')),
+      );
+      return;
+    }
+
+    // 2️⃣ 로딩 다이얼로그 표시 (비동기 처리)
+    bool isLoading = true;
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true, // 사용자가 닫을 수 있도록 설정
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('FAQ 열기'),
-          content: const Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('FAQ 페이지를 여는 중입니다...')
-            ],
-          ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('FAQ 열기'),
+              content: Row(
+                children: [
+                  if (isLoading) const CircularProgressIndicator(),
+                  const SizedBox(width: 16),
+                  Text(isLoading ? 'FAQ 페이지를 여는 중입니다...' : 'FAQ 페이지 열기 실패'),
+                ],
+              ),
+              actions: [
+                if (!isLoading)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      _handleFaq(context, saveInquiry, supportWebsite, useInAppWebView: useInAppWebView); // 재시도
+                    },
+                    child: const Text('재시도'),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('닫기'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
     try {
-      if (await canLaunchUrl(faqUri)) {
-        await launchUrl(faqUri, mode: LaunchMode.externalApplication);
+      bool success = false;
+
+      if (useInAppWebView) {
+        // 3️⃣ 앱 내 웹뷰 사용 (기본 브라우저 대신)
+        success = await launchUrl(faqUri, mode: LaunchMode.inAppWebView);
       } else {
-        throw 'FAQ 페이지를 열 수 없습니다.';
+        // 4️⃣ 기본 외부 브라우저에서 열기
+        success = await launchUrl(faqUri, mode: LaunchMode.externalApplication);
       }
+
+      if (!success) throw 'FAQ 페이지를 열 수 없습니다.';
     } catch (e) {
+      isLoading = false; // 로딩 상태 종료
       Clipboard.setData(ClipboardData(text: supportWebsite));
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('FAQ 페이지를 열 수 없습니다. URL이 복사되었습니다: $supportWebsite'),
@@ -102,10 +139,9 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         ),
       );
     } finally {
-      Navigator.of(context).pop(); // 로딩 팝업 닫기
+      Navigator.of(context).pop(); // 5️⃣ 로딩 팝업 닫기
     }
   }
-
   void _handleEmail(BuildContext context, Function saveInquiry) async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
