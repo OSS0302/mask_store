@@ -52,9 +52,109 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     await prefs.remove('inquiryHistory');
   }
 
-  void _handleChat(BuildContext context, Function saveInquiry) {
+  void _handleChat(BuildContext context, Function saveInquiry, {String? kakaoUrl, String? telegramUrl, String? email}) async {
     saveInquiry('채팅 문의');
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('채팅 기능 준비 중입니다.')));
+
+    //  네트워크 상태 확인
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('인터넷 연결이 없습니다. 네트워크 상태를 확인하세요.')),
+      );
+      return;
+    }
+
+    //  채팅 옵션 선택 다이얼로그 표시
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+      ),
+      builder: (BuildContext bottomSheetContext) {
+        return Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.chat),
+              title: const Text('앱 내 채팅'),
+              onTap: () {
+                Navigator.pop(bottomSheetContext);
+                _openInAppChat(context);
+              },
+            ),
+            if (kakaoUrl != null)
+              ListTile(
+                leading: const Icon(Icons.message, color: Colors.yellow),
+                title: const Text('카카오톡 문의'),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _launchChatUrl(context, kakaoUrl, '카카오톡');
+                },
+              ),
+            if (telegramUrl != null)
+              ListTile(
+                leading: const Icon(Icons.send, color: Colors.blue),
+                title: const Text('텔레그램 문의'),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _launchChatUrl(context, telegramUrl, '텔레그램');
+                },
+              ),
+            if (email != null)
+              ListTile(
+                leading: const Icon(Icons.email, color: Colors.red),
+                title: const Text('이메일 문의'),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _sendEmail(context, email);
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+// 앱 내 채팅 화면으로 이동하는 함수
+  void _openInAppChat(BuildContext context) {
+    // 여기에 앱 내 채팅 페이지로 이동하는 코드 추가
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('앱 내 채팅 기능 준비 중입니다.')));
+  }
+
+// 외부 URL을 여는 함수
+  void _launchChatUrl(BuildContext context, String url, String platform) async {
+    try {
+      final Uri chatUri = Uri.parse(url);
+      if (!await launchUrl(chatUri, mode: LaunchMode.externalApplication)) {
+        throw '오류 발생';
+      }
+    } catch (e) {
+      Clipboard.setData(ClipboardData(text: url));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$platform을 열 수 없습니다. URL이 복사되었습니다: $url'),
+        ),
+      );
+    }
+  }
+
+//이메일 전송 함수
+  void _sendEmail(BuildContext context, String email) async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: email,
+      queryParameters: {'subject': '고객 문의', 'body': '문의 내용을 작성해주세요.'},
+    );
+
+    try {
+      if (!await launchUrl(emailUri)) {
+        throw '이메일 앱을 열 수 없습니다.';
+      }
+    } catch (e) {
+      Clipboard.setData(ClipboardData(text: email));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('이메일 앱을 열 수 없습니다. 이메일 주소가 복사되었습니다: $email')),
+      );
+    }
   }
 
   void _handleFaq(BuildContext context, Function saveInquiry, String supportWebsite, {bool useInAppWebView = false}) async {
