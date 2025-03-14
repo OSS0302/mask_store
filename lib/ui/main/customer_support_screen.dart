@@ -44,13 +44,146 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     await prefs.setStringList('inquiryHistory', inquiryHistory.map((e) => jsonEncode(e)).toList());
   }
 
-  Future<void> _clearInquiryHistory() async {
+  import 'package:flutter/material.dart';
+  import 'package:shared_preferences/shared_preferences.dart';
+
+  List<String> inquiryHistory = []; // 예제 데이터, 실제 사용 시 상태 변수로 관리
+
+  Future<void> _clearInquiryHistory(BuildContext context) async {
+    if (inquiryHistory.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제할 문의 내역이 없습니다.')),
+      );
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      inquiryHistory.clear();
-    });
-    await prefs.remove('inquiryHistory');
+    List<String> backupHistory = List.from(inquiryHistory); // 백업 데이터 저장
+
+    // 1️⃣ 삭제 확인 다이얼로그 (미리보기 포함)
+    bool? confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('문의 내역 삭제'),
+          content: SizedBox(
+            height: 150,
+            child: Column(
+              children: [
+                const Text('모든 문의 내역을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: inquiryHistory.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text(inquiryHistory[index], maxLines: 1, overflow: TextOverflow.ellipsis),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete != true) return;
+
+    // 2️⃣ 로딩 다이얼로그 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext loadingContext) {
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('문의 내역을 삭제하는 중...'),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      // 3️⃣ 내역 삭제
+      setState(() {
+        inquiryHistory.clear();
+      });
+      await prefs.remove('inquiryHistory');
+
+      Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+
+      // 4️⃣ 실행 취소(Undo) 옵션 제공
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('문의 내역이 삭제되었습니다.'),
+          action: SnackBarAction(
+            label: '실행 취소',
+            onPressed: () async {
+              setState(() {
+                inquiryHistory = List.from(backupHistory);
+              });
+              await prefs.setStringList('inquiryHistory', inquiryHistory);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('삭제가 취소되었습니다.')),
+              );
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('삭제 중 오류가 발생했습니다. 다시 시도해주세요.')),
+      );
+    }
   }
+
+// 🔹 특정 문의 내역만 삭제하는 기능 (실행 취소 지원)
+  Future<void> _removeSingleInquiry(BuildContext context, String inquiry) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> backupHistory = List.from(inquiryHistory);
+
+    setState(() {
+      inquiryHistory.remove(inquiry);
+    });
+
+    await prefs.setStringList('inquiryHistory', inquiryHistory);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('문의 내역이 삭제되었습니다: $inquiry'),
+        action: SnackBarAction(
+          label: '실행 취소',
+          onPressed: () async {
+            setState(() {
+              inquiryHistory = List.from(backupHistory);
+            });
+            await prefs.setStringList('inquiryHistory', inquiryHistory);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('삭제가 취소되었습니다.')),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
 
   void _handleChat(BuildContext context, Function saveInquiry, {String? kakaoUrl, String? telegramUrl, String? email}) async {
     saveInquiry('채팅 문의');
