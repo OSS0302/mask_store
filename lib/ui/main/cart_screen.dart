@@ -11,13 +11,21 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final List<Map<String, dynamic>> cartItems = [
-    {'name': 'KF94 마스크', 'price': 1000, 'quantity': 2},
-    {'name': 'N95 마스크', 'price': 1500, 'quantity': 1},
+    {'name': 'KF94 마스크', 'price': 1000, 'quantity': 2, 'wishlist': false},
+    {'name': 'N95 마스크', 'price': 1500, 'quantity': 1, 'wishlist': false},
   ];
   double discount = 0.0;
   bool isLoading = false;
+  double shippingFee = 3000.0;
 
   double get totalPrice => cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) * (1 - discount);
+  double get finalPrice => totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
+
+  void toggleWishlist(int index) {
+    setState(() {
+      cartItems[index]['wishlist'] = !cartItems[index]['wishlist'];
+    });
+  }
 
   void clearCart() {
     showDialog(
@@ -38,10 +46,7 @@ class _CartScreenState extends State<CartScreen> {
                 const SnackBar(content: Text('장바구니가 초기화되었습니다.')),
               );
             },
-            child: const Text(
-              '확인',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('확인', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -71,6 +76,22 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  void showItemDetails(Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item['name']),
+        content: Text('가격: ₩${item['price']}, 수량: ${item['quantity']}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -94,17 +115,10 @@ class _CartScreenState extends State<CartScreen> {
           children: [
             const Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text(
-              '장바구니가 비어 있습니다.',
-              style: TextStyle(fontSize: 18),
-            ),
+            const Text('장바구니가 비어 있습니다.', style: TextStyle(fontSize: 18)),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('스토어로 이동 기능 준비 중')),
-                );
-              },
+              onPressed: () {},
               child: const Text('스토어 둘러보기'),
             ),
           ],
@@ -136,28 +150,14 @@ class _CartScreenState extends State<CartScreen> {
                     child: ListTile(
                       title: Text(item['name']),
                       subtitle: Text('₩${item['price']} x ${item['quantity']}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle),
-                            onPressed: () {
-                              setState(() {
-                                if (item['quantity'] > 1) {
-                                  item['quantity']--;
-                                }
-                              });
-                            },
-                          ),
-                          Text('${item['quantity']}'),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle),
-                            onPressed: () {
-                              setState(() => item['quantity']++);
-                            },
-                          ),
-                        ],
+                      trailing: IconButton(
+                        icon: Icon(
+                          item['wishlist'] ? Icons.favorite : Icons.favorite_border,
+                          color: item['wishlist'] ? Colors.red : null,
+                        ),
+                        onPressed: () => toggleWishlist(index),
                       ),
+                      onTap: () => showItemDetails(item),
                     ),
                   ),
                 );
@@ -171,31 +171,20 @@ class _CartScreenState extends State<CartScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      '총 합계',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '₩${totalPrice.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
-                    ),
+                    const Text('총 합계', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('₩${finalPrice.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
                   ],
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  decoration: const InputDecoration(
-                    hintText: '프로모션 코드를 입력하세요',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(hintText: '프로모션 코드를 입력하세요', border: OutlineInputBorder()),
                   onSubmitted: (value) => applyDiscount(value),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: isLoading ? null : processCheckout,
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('결제하기'),
+                  child: isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('결제하기'),
                 ),
               ],
             ),
