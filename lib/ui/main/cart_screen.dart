@@ -71,8 +71,18 @@ class _CartScreenState extends State<CartScreen> {
     await Future.delayed(const Duration(seconds: 2));
     setState(() => isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('결제 완료! 감사합니다.')),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('결제 완료!'),
+        content: const Text('결제가 성공적으로 완료되었습니다. 감사합니다!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -81,7 +91,18 @@ class _CartScreenState extends State<CartScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(item['name']),
-        content: Text('가격: ₩${item['price']}, 수량: ${item['quantity']}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('가격: ₩${item['price']}'),
+            Text('수량: ${item['quantity']}'),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {},
+              child: const Text('추가 구매'),
+            )
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -162,31 +183,6 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 );
               },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('총 합계', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text('₩${finalPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  decoration: const InputDecoration(hintText: '프로모션 코드를 입력하세요', border: OutlineInputBorder()),
-                  onSubmitted: (value) => applyDiscount(value),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: isLoading ? null : processCheckout,
-                  child: isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('결제하기'),
-                ),
-              ],
             ),
           ),
         ],
