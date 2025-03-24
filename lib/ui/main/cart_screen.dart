@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:share_plus/share_plus.dart'; // 실제 공유 기능 사용 시
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -10,7 +13,7 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  final List<Map<String, dynamic>> cartItems = [
+  List<Map<String, dynamic>> cartItems = [
     {
       'name': 'KF94 마스크',
       'price': 1000,
@@ -36,6 +39,26 @@ class _CartScreenState extends State<CartScreen> {
   double shippingFee = 3000.0;
   String selectedShipping = "일반 배송 (₩3000)";
   List<String> availableCoupons = ["SAVE10", "FREESHIP", "DISCOUNT5"];
+  String sortOption = "none";
+
+  // 추천 상품 예시
+  final List<Map<String, dynamic>> recommendedProducts = [
+    {
+      'name': '손 소독제',
+      'price': 2000,
+      'image': 'assets/sanitizer.png',
+    },
+    {
+      'name': '일회용 장갑',
+      'price': 500,
+      'image': 'assets/gloves.png',
+    },
+    {
+      'name': '소독 티슈',
+      'price': 800,
+      'image': 'assets/disinfectant.png',
+    },
+  ];
 
   double get totalPrice => cartItems.fold(
     0.0,
@@ -43,7 +66,8 @@ class _CartScreenState extends State<CartScreen> {
   ) *
       (1 - discount);
 
-  double get finalPrice => totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
+  double get finalPrice =>
+      totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
 
   double get discountAmount => cartItems.fold(
     0.0,
@@ -141,6 +165,79 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  // 재입고 알림 신청 (품절 상품용)
+  void requestRestockNotification(String productName) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$productName 재입고 알림 신청이 완료되었습니다.')),
+    );
+  }
+
+  // 장바구니 공유 (실제 공유 기능은 share_plus 패키지 사용 가능)
+  void shareCart() {
+    String cartContent = cartItems
+        .map((item) =>
+    "${item['name']} - ₩${item['price']} x ${item['quantity']}")
+        .join("\n");
+    // Share.share(cartContent);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('장바구니 내용이 공유되었습니다.\n$cartContent')),
+    );
+  }
+
+  // 장바구니 저장 기능 (SharedPreferences 사용)
+  Future<void> saveCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    String jsonCart = jsonEncode(cartItems);
+    await prefs.setString('cartItems', jsonCart);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('장바구니가 저장되었습니다.')),
+    );
+  }
+
+  Future<void> loadCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonCart = prefs.getString('cartItems');
+    if (jsonCart != null) {
+      List<dynamic> loaded = jsonDecode(jsonCart);
+      setState(() {
+        cartItems = loaded.cast<Map<String, dynamic>>();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('장바구니가 불러와졌습니다.')),
+      );
+    }
+  }
+
+  // 정렬 기능
+  void sortCart(String option) {
+    setState(() {
+      sortOption = option;
+      if (option == "가격 낮은 순") {
+        cartItems.sort((a, b) => a['price'].compareTo(b['price']));
+      } else if (option == "가격 높은 순") {
+        cartItems.sort((a, b) => b['price'].compareTo(a['price']));
+      }
+    });
+  }
+
+  // 추천 상품 장바구니에 추가
+  void addRecommendedProduct(Map<String, dynamic> product) {
+    setState(() {
+      cartItems.add({
+        'name': product['name'],
+        'price': product['price'],
+        'quantity': 1,
+        'wishlist': false,
+        'image': product['image'],
+        'soldOut': false,
+        'selected': false,
+      });
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${product['name']}이(가) 추가되었습니다.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -148,6 +245,27 @@ class _CartScreenState extends State<CartScreen> {
       appBar: AppBar(
         title: const Text('장바구니'),
         backgroundColor: isDarkMode ? Colors.black : Colors.teal,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: shareCart,
+          ),
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: saveCart,
+          ),
+          IconButton(
+            icon: const Icon(Icons.folder_open),
+            onPressed: loadCart,
+          ),
+          PopupMenuButton<String>(
+            onSelected: sortCart,
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: "가격 낮은 순", child: Text("가격 낮은 순")),
+              const PopupMenuItem(value: "가격 높은 순", child: Text("가격 높은 순")),
+            ],
+          ),
+        ],
       ),
       body: cartItems.isEmpty
           ? const Center(
@@ -156,10 +274,13 @@ class _CartScreenState extends State<CartScreen> {
           style: TextStyle(fontSize: 18),
         ),
       )
-          : Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
+          : SingleChildScrollView(
+        child: Column(
+          children: [
+            // 장바구니 리스트
+            ListView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
               itemCount: cartItems.length,
               itemBuilder: (context, index) {
                 final item = cartItems[index];
@@ -183,25 +304,31 @@ class _CartScreenState extends State<CartScreen> {
                         subtitle: Text(item['soldOut']
                             ? '품절됨'
                             : '₩${item['price']} x ${item['quantity']}'),
-                        trailing: Row(
+                        trailing: item['soldOut']
+                            ? ElevatedButton(
+                          onPressed: () =>
+                              requestRestockNotification(item['name']),
+                          child: const Text('재입고 알림'),
+                        )
+                            : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: const Icon(
                                   Icons.remove_circle_outline),
-                              onPressed: item['soldOut']
-                                  ? null
-                                  : () => changeQuantity(index, -1),
+                              onPressed: () =>
+                                  changeQuantity(index, -1),
                             ),
                             Text(
                               '${item['quantity']}',
-                              style: const TextStyle(fontSize: 16),
+                              style:
+                              const TextStyle(fontSize: 16),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.add_circle_outline),
-                              onPressed: item['soldOut']
-                                  ? null
-                                  : () => changeQuantity(index, 1),
+                              icon: const Icon(
+                                  Icons.add_circle_outline),
+                              onPressed: () =>
+                                  changeQuantity(index, 1),
                             ),
                             IconButton(
                               icon: Icon(
@@ -222,83 +349,139 @@ class _CartScreenState extends State<CartScreen> {
                 );
               },
             ),
-          ),
-          // 선택 삭제 버튼
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (cartItems.any((item) => item['selected'])) {
-                  confirmRemoveSelectedItems();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('삭제할 상품을 선택해주세요.')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.delete),
-              label: const Text('선택 삭제'),
-              style: ElevatedButton.styleFrom(primary: Colors.red),
+            // 선택 삭제 버튼
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  if (cartItems.any((item) => item['selected'])) {
+                    confirmRemoveSelectedItems();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('삭제할 상품을 선택해주세요.')),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.delete),
+                label: const Text('선택 삭제'),
+                style: ElevatedButton.styleFrom(primary: Colors.red),
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          // 배송 옵션, 총 합계, 프로모션 코드 입력 및 결제 버튼 영역
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                DropdownButton<String>(
-                  value: selectedShipping,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedShipping = value!;
-                      shippingFee =
-                      value == "빠른 배송 (₩5000)" ? 5000 : 3000;
-                    });
-                  },
-                  items: ["일반 배송 (₩3000)", "빠른 배송 (₩5000)"]
-                      .map((e) =>
-                      DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      '총 합계',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '₩${finalPrice.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.teal),
-                    ),
-                  ],
-                ),
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: '프로모션 코드를 입력하세요',
-                    border: OutlineInputBorder(),
+            const SizedBox(height: 10),
+            // 배송 옵션, 총 합계, 프로모션 및 결제 영역
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  DropdownButton<String>(
+                    value: selectedShipping,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedShipping = value!;
+                        shippingFee = value == "빠른 배송 (₩5000)" ? 5000 : 3000;
+                      });
+                    },
+                    items: ["일반 배송 (₩3000)", "빠른 배송 (₩5000)"]
+                        .map((e) =>
+                        DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
                   ),
-                  onSubmitted: (value) => applyDiscount(value),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: isLoading ? null : processCheckout,
-                  child: isLoading
-                      ? const CircularProgressIndicator(
-                    color: Colors.white,
-                  )
-                      : const Text('결제하기'),
-                ),
-              ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '총 합계',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '₩${finalPrice.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal),
+                      ),
+                    ],
+                  ),
+                  TextField(
+                    decoration: const InputDecoration(
+                      hintText: '프로모션 코드를 입력하세요',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (value) => applyDiscount(value),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: isLoading ? null : processCheckout,
+                    child: isLoading
+                        ? const CircularProgressIndicator(
+                      color: Colors.white,
+                    )
+                        : const Text('결제하기'),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            // 추천 상품 영역
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '추천 상품',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 150,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: recommendedProducts.length,
+                itemBuilder: (context, index) {
+                  final product = recommendedProducts[index];
+                  return GestureDetector(
+                    onTap: () => addRecommendedProduct(product),
+                    child: Card(
+                      margin: const EdgeInsets.all(8.0),
+                      child: Container(
+                        width: 120,
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              product['image'],
+                              width: 60,
+                              height: 60,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              product['name'],
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '₩${product['price']}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
