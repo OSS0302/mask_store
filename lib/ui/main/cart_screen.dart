@@ -3,7 +3,6 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:share_plus/share_plus.dart'; // 실제 공유 기능 사용 시
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -365,7 +364,7 @@ class _CartScreenState extends State<CartScreen> {
                 },
                 icon: const Icon(Icons.delete),
                 label: const Text('선택 삭제'),
-                style: ElevatedButton.styleFrom(primary: Colors.red),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               ),
             ),
             const SizedBox(height: 10),
