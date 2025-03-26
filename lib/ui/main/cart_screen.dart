@@ -3,6 +3,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:share_plus/share_plus.dart'; // 실제 공유 기능 사용 시
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -21,6 +22,8 @@ class _CartScreenState extends State<CartScreen> {
       'image': 'assets/kf94.png',
       'soldOut': true,
       'selected': false,
+      'rating': 4.2,
+      'note': '',
     },
     {
       'name': 'N95 마스크',
@@ -30,8 +33,13 @@ class _CartScreenState extends State<CartScreen> {
       'image': 'assets/n95.png',
       'soldOut': false,
       'selected': false,
+      'rating': 4.5,
+      'note': '',
     },
   ];
+
+  // 저장된 상품 목록 (나중에 구매용)
+  List<Map<String, dynamic>> savedItems = [];
 
   double discount = 0.0;
   bool isLoading = false;
@@ -114,10 +122,7 @@ class _CartScreenState extends State<CartScreen> {
                 const SnackBar(content: Text('선택한 상품이 삭제되었습니다.')),
               );
             },
-            child: const Text(
-              '삭제',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -148,7 +153,6 @@ class _CartScreenState extends State<CartScreen> {
     setState(() => isLoading = true);
     await Future.delayed(const Duration(seconds: 2));
     setState(() => isLoading = false);
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -230,10 +234,119 @@ class _CartScreenState extends State<CartScreen> {
         'image': product['image'],
         'soldOut': false,
         'selected': false,
+        'rating': 4.0,
+        'note': '',
       });
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${product['name']}이(가) 추가되었습니다.')),
+    );
+  }
+
+  // 상품 상세보기 (메모 및 평점 표시/수정)
+  void showItemDetails(Map<String, dynamic> item, int index) {
+    TextEditingController noteController = TextEditingController(text: item['note']);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item['name']),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('가격: ₩${item['price']}'),
+              const SizedBox(height: 8),
+              Text('수량: ${item['quantity']}'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text('평점: '),
+                  Icon(Icons.star, color: Colors.amber, size: 20),
+                  Text('${item['rating']}'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: noteController,
+                decoration: const InputDecoration(
+                  hintText: '메모를 입력하세요',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                cartItems[index]['note'] = noteController.text;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('저장'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Save for Later: 장바구니에서 삭제 후 savedItems에 추가
+  void moveToSaved(int index) {
+    setState(() {
+      savedItems.add(cartItems[index]);
+      cartItems.removeAt(index);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('나중에 구매할 상품으로 이동되었습니다.')),
+    );
+  }
+
+  // 저장된 상품 보기
+  void viewSavedItems() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('저장된 상품'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: savedItems.length,
+            itemBuilder: (context, index) {
+              final item = savedItems[index];
+              return ListTile(
+                leading: Image.asset(item['image'], width: 40, height: 40),
+                title: Text(item['name']),
+                trailing: IconButton(
+                  icon: const Icon(Icons.restore),
+                  onPressed: () {
+                    setState(() {
+                      cartItems.add(item);
+                      savedItems.removeAt(index);
+                    });
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('상품이 장바구니로 복원되었습니다.')),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -256,6 +369,10 @@ class _CartScreenState extends State<CartScreen> {
           IconButton(
             icon: const Icon(Icons.folder_open),
             onPressed: loadCart,
+          ),
+          IconButton(
+            icon: const Icon(Icons.bookmark),
+            onPressed: viewSavedItems,
           ),
           PopupMenuButton<String>(
             onSelected: sortCart,
@@ -299,46 +416,40 @@ class _CartScreenState extends State<CartScreen> {
                             });
                           },
                         ),
-                        title: Text(item['name']),
+                        title: GestureDetector(
+                          onTap: () => showItemDetails(item, index),
+                          child: Text(item['name']),
+                        ),
                         subtitle: Text(item['soldOut']
                             ? '품절됨'
                             : '₩${item['price']} x ${item['quantity']}'),
                         trailing: item['soldOut']
                             ? ElevatedButton(
-                          onPressed: () =>
-                              requestRestockNotification(item['name']),
+                          onPressed: () => requestRestockNotification(item['name']),
                           child: const Text('재입고 알림'),
                         )
                             : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(
-                                  Icons.remove_circle_outline),
-                              onPressed: () =>
-                                  changeQuantity(index, -1),
+                              icon: const Icon(Icons.remove_circle_outline),
+                              onPressed: () => changeQuantity(index, -1),
                             ),
-                            Text(
-                              '${item['quantity']}',
-                              style:
-                              const TextStyle(fontSize: 16),
-                            ),
+                            Text('${item['quantity']}', style: const TextStyle(fontSize: 16)),
                             IconButton(
-                              icon: const Icon(
-                                  Icons.add_circle_outline),
-                              onPressed: () =>
-                                  changeQuantity(index, 1),
+                              icon: const Icon(Icons.add_circle_outline),
+                              onPressed: () => changeQuantity(index, 1),
                             ),
                             IconButton(
                               icon: Icon(
-                                item['wishlist']
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: item['wishlist']
-                                    ? Colors.red
-                                    : null,
+                                item['wishlist'] ? Icons.favorite : Icons.favorite_border,
+                                color: item['wishlist'] ? Colors.red : null,
                               ),
                               onPressed: () => toggleWishlist(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.bookmark_border),
+                              onPressed: () => moveToSaved(index),
                             ),
                           ],
                         ),
@@ -357,14 +468,13 @@ class _CartScreenState extends State<CartScreen> {
                     confirmRemoveSelectedItems();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('삭제할 상품을 선택해주세요.')),
+                      const SnackBar(content: Text('삭제할 상품을 선택해주세요.')),
                     );
                   }
                 },
                 icon: const Icon(Icons.delete),
                 label: const Text('선택 삭제'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                style: ElevatedButton.styleFrom(primary: Colors.red),
               ),
             ),
             const SizedBox(height: 10),
@@ -382,8 +492,7 @@ class _CartScreenState extends State<CartScreen> {
                       });
                     },
                     items: ["일반 배송 (₩3000)", "빠른 배송 (₩5000)"]
-                        .map((e) =>
-                        DropdownMenuItem(value: e, child: Text(e)))
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
                   ),
                   Row(
@@ -391,15 +500,11 @@ class _CartScreenState extends State<CartScreen> {
                     children: [
                       const Text(
                         '총 합계',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         '₩${finalPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
                       ),
                     ],
                   ),
@@ -414,9 +519,7 @@ class _CartScreenState extends State<CartScreen> {
                   ElevatedButton(
                     onPressed: isLoading ? null : processCheckout,
                     child: isLoading
-                        ? const CircularProgressIndicator(
-                      color: Colors.white,
-                    )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : const Text('결제하기'),
                   ),
                 ],
@@ -431,9 +534,10 @@ class _CartScreenState extends State<CartScreen> {
                 child: Text(
                   '추천 상품',
                   style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : Colors.black),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
                 ),
               ),
             ),
@@ -468,8 +572,7 @@ class _CartScreenState extends State<CartScreen> {
                             const SizedBox(height: 4),
                             Text(
                               '₩${product['price']}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
