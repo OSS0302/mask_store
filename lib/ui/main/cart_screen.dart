@@ -3,7 +3,6 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:share_plus/share_plus.dart'; // 실제 공유 기능 사용 시
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -38,9 +37,8 @@ class _CartScreenState extends State<CartScreen> {
     },
   ];
 
-  // 저장된 상품 목록 (나중에 구매용)
+  // 저장된 상품 목록 (나중에 구매용) 및 최근 본 상품 목록
   List<Map<String, dynamic>> savedItems = [];
-  // 최근 본 상품 목록
   List<Map<String, dynamic>> recentlyViewed = [];
 
   // 삭제한 항목 보관 (Undo 기능)
@@ -53,7 +51,7 @@ class _CartScreenState extends State<CartScreen> {
   List<String> availableCoupons = ["SAVE10", "FREESHIP", "DISCOUNT5"];
   String sortOption = "none";
 
-  // 추천 상품 예시 (카테고리 추가)
+  // 추천 상품 예시 (카테고리 포함)
   final List<Map<String, dynamic>> recommendedProducts = [
     {
       'name': '손 소독제',
@@ -74,26 +72,16 @@ class _CartScreenState extends State<CartScreen> {
       'category': '위생'
     },
   ];
-
-  // 추천 상품 필터링
   String selectedCategory = "전체";
 
   final ScrollController _scrollController = ScrollController();
 
-  double get totalPrice => cartItems.fold(
-    0.0,
-        (sum, item) => sum + (item['price'] * item['quantity']),
-  ) *
-      (1 - discount);
-
-  double get finalPrice =>
-      totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
-
-  double get discountAmount => cartItems.fold(
-    0.0,
-        (sum, item) => sum + (item['price'] * item['quantity']),
-  ) *
-      discount;
+  double get totalPrice =>
+      cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) *
+          (1 - discount);
+  double get finalPrice => totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
+  double get discountAmount =>
+      cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) * discount;
 
   void toggleWishlist(int index) {
     if (cartItems[index]['soldOut']) return;
@@ -147,10 +135,7 @@ class _CartScreenState extends State<CartScreen> {
               removeSelectedItems();
               Navigator.pop(context);
             },
-            child: const Text(
-              '삭제',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -179,7 +164,6 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> processCheckout() async {
     setState(() => isLoading = true);
-    // 결제 진행 오버레이 (예시)
     await Future.delayed(const Duration(seconds: 2));
     setState(() => isLoading = false);
     showDialog(
@@ -207,8 +191,7 @@ class _CartScreenState extends State<CartScreen> {
   // 장바구니 공유 (실제 공유 기능은 share_plus 패키지 사용 가능)
   void shareCart() {
     String cartContent = cartItems
-        .map((item) =>
-    "${item['name']} - ₩${item['price']} x ${item['quantity']}")
+        .map((item) => "${item['name']} - ₩${item['price']} x ${item['quantity']}")
         .join("\n");
     // Share.share(cartContent);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -216,7 +199,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 장바구니 저장 기능 (SharedPreferences 사용)
+  // 장바구니 저장 및 불러오기
   Future<void> saveCart() async {
     final prefs = await SharedPreferences.getInstance();
     String jsonCart = jsonEncode(cartItems);
@@ -327,7 +310,6 @@ class _CartScreenState extends State<CartScreen> {
                 cartItems[index]['note'] = noteController.text;
                 cartItems[index]['rating'] = currentRating;
               });
-              // 최근 본 상품에 추가
               if (!recentlyViewed.contains(item)) {
                 setState(() {
                   recentlyViewed.add(item);
@@ -462,14 +444,6 @@ class _CartScreenState extends State<CartScreen> {
             onPressed: viewSavedItems,
           ),
           PopupMenuButton<String>(
-            onSelected: sortCart,
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                  value: "가격 낮은 순", child: Text("가격 낮은 순")),
-              const PopupMenuItem(
-                  value: "가격 높은 순", child: Text("가격 높은 순")),
-              const PopupMenuItem(value: "전체 삭제", child: Text("전체 삭제")),
-            ],
             onSelected: (value) {
               if (value == "전체 삭제") {
                 clearCart();
@@ -477,6 +451,11 @@ class _CartScreenState extends State<CartScreen> {
                 sortCart(value);
               }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: "가격 낮은 순", child: Text("가격 낮은 순")),
+              const PopupMenuItem(value: "가격 높은 순", child: Text("가격 높은 순")),
+              const PopupMenuItem(value: "전체 삭제", child: Text("전체 삭제")),
+            ],
           ),
         ],
       ),
@@ -535,8 +514,7 @@ class _CartScreenState extends State<CartScreen> {
                                   icon: const Icon(Icons.remove_circle_outline),
                                   onPressed: () => changeQuantity(index, -1),
                                 ),
-                                Text('${item['quantity']}',
-                                    style: const TextStyle(fontSize: 16)),
+                                Text('${item['quantity']}', style: const TextStyle(fontSize: 16)),
                                 IconButton(
                                   icon: const Icon(Icons.add_circle_outline),
                                   onPressed: () => changeQuantity(index, 1),
@@ -575,7 +553,7 @@ class _CartScreenState extends State<CartScreen> {
                     },
                     icon: const Icon(Icons.delete),
                     label: const Text('선택 삭제'),
-                    style: ElevatedButton.styleFrom(primary: Colors.red),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -593,8 +571,7 @@ class _CartScreenState extends State<CartScreen> {
                           });
                         },
                         items: ["일반 배송 (₩3000)", "빠른 배송 (₩5000)"]
-                            .map((e) =>
-                            DropdownMenuItem(value: e, child: Text(e)))
+                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                             .toList(),
                       ),
                       Row(
@@ -639,9 +616,10 @@ class _CartScreenState extends State<CartScreen> {
                         child: Text(
                           '최근 본 상품',
                           style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isDarkMode ? Colors.white : Colors.black),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
                         ),
                       ),
                       SizedBox(
@@ -661,7 +639,11 @@ class _CartScreenState extends State<CartScreen> {
                                   children: [
                                     Image.asset(item['image'], width: 60, height: 60),
                                     const SizedBox(height: 4),
-                                    Text(item['name'], textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+                                    Text(
+                                      item['name'],
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -746,9 +728,7 @@ class _CartScreenState extends State<CartScreen> {
           if (isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
         ],
       ),
