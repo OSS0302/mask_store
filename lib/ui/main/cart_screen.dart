@@ -44,6 +44,9 @@ class _CartScreenState extends State<CartScreen> {
   // 삭제한 항목 보관 (Undo 기능)
   List<Map<String, dynamic>> removedItems = [];
 
+  // 주문 내역 저장 (추가 기능)
+  List<Map<String, dynamic>> orderHistory = [];
+
   double discount = 0.0;
   bool isLoading = false;
   double shippingFee = 3000.0;
@@ -79,7 +82,8 @@ class _CartScreenState extends State<CartScreen> {
   double get totalPrice =>
       cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) *
           (1 - discount);
-  double get finalPrice => totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
+  double get finalPrice =>
+      totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
   double get discountAmount =>
       cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) * discount;
 
@@ -165,7 +169,16 @@ class _CartScreenState extends State<CartScreen> {
   Future<void> processCheckout() async {
     setState(() => isLoading = true);
     await Future.delayed(const Duration(seconds: 2));
-    setState(() => isLoading = false);
+    // 주문 내역 저장 (주문 아이템, 총액, 날짜)
+    orderHistory.add({
+      'items': List<Map<String, dynamic>>.from(cartItems),
+      'total': finalPrice,
+      'date': DateTime.now().toString(),
+    });
+    setState(() {
+      isLoading = false;
+      cartItems.clear();
+    });
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -175,6 +188,38 @@ class _CartScreenState extends State<CartScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 주문 내역 보기
+  void viewOrderHistory() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('주문 내역'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: orderHistory.isEmpty
+              ? const Text('주문 내역이 없습니다.')
+              : ListView.builder(
+            shrinkWrap: true,
+            itemCount: orderHistory.length,
+            itemBuilder: (context, index) {
+              final order = orderHistory[index];
+              return ListTile(
+                title: Text('총액: ₩${order['total'].toStringAsFixed(2)}'),
+                subtitle: Text('주문일: ${order['date']}'),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
           ),
         ],
       ),
@@ -443,6 +488,10 @@ class _CartScreenState extends State<CartScreen> {
             icon: const Icon(Icons.bookmark),
             onPressed: viewSavedItems,
           ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: viewOrderHistory,
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == "전체 삭제") {
@@ -504,7 +553,8 @@ class _CartScreenState extends State<CartScreen> {
                                 : '₩${item['price']} x ${item['quantity']}'),
                             trailing: item['soldOut']
                                 ? ElevatedButton(
-                              onPressed: () => requestRestockNotification(item['name']),
+                              onPressed: () =>
+                                  requestRestockNotification(item['name']),
                               child: const Text('재입고 알림'),
                             )
                                 : Row(
@@ -514,14 +564,17 @@ class _CartScreenState extends State<CartScreen> {
                                   icon: const Icon(Icons.remove_circle_outline),
                                   onPressed: () => changeQuantity(index, -1),
                                 ),
-                                Text('${item['quantity']}', style: const TextStyle(fontSize: 16)),
+                                Text('${item['quantity']}',
+                                    style: const TextStyle(fontSize: 16)),
                                 IconButton(
                                   icon: const Icon(Icons.add_circle_outline),
                                   onPressed: () => changeQuantity(index, 1),
                                 ),
                                 IconButton(
                                   icon: Icon(
-                                    item['wishlist'] ? Icons.favorite : Icons.favorite_border,
+                                    item['wishlist']
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
                                     color: item['wishlist'] ? Colors.red : null,
                                   ),
                                   onPressed: () => toggleWishlist(index),
