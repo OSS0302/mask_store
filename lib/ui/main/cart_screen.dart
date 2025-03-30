@@ -3,6 +3,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:share_plus/share_plus.dart'; // 실제 공유 기능 사용 시
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -40,16 +41,16 @@ class _CartScreenState extends State<CartScreen> {
   // 저장된 상품 목록 (나중에 구매용) 및 최근 본 상품 목록
   List<Map<String, dynamic>> savedItems = [];
   List<Map<String, dynamic>> recentlyViewed = [];
-
   // 삭제한 항목 보관 (Undo 기능)
   List<Map<String, dynamic>> removedItems = [];
-
-  // 주문 내역 저장 (추가 기능)
+  // 주문 내역 저장
   List<Map<String, dynamic>> orderHistory = [];
 
   double discount = 0.0;
   bool isLoading = false;
   double shippingFee = 3000.0;
+  bool giftWrap = false; // 선물 포장 옵션
+  final double giftWrapFee = 500.0;
   String selectedShipping = "일반 배송 (₩3000)";
   List<String> availableCoupons = ["SAVE10", "FREESHIP", "DISCOUNT5"];
   String sortOption = "none";
@@ -79,13 +80,21 @@ class _CartScreenState extends State<CartScreen> {
 
   final ScrollController _scrollController = ScrollController();
 
-  double get totalPrice =>
-      cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) *
-          (1 - discount);
+  double get totalPrice => cartItems.fold(
+    0.0,
+        (sum, item) => sum + (item['price'] * item['quantity']),
+  ) *
+      (1 - discount);
+
+  // 최종 금액은 총액 + 배송료 + (선물 포장 비용 if 선택)
   double get finalPrice =>
-      totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee;
+      totalPrice >= 50000 ? totalPrice : totalPrice + shippingFee + (giftWrap ? giftWrapFee : 0);
+
   double get discountAmount =>
       cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity'])) * discount;
+
+  // 적립 포인트 (결제금액의 1%)
+  int get earnedPoints => (finalPrice * 0.01).round();
 
   void toggleWishlist(int index) {
     if (cartItems[index]['soldOut']) return;
@@ -166,6 +175,28 @@ class _CartScreenState extends State<CartScreen> {
     });
   }
 
+  // 최적 쿠폰 자동 적용 (가장 높은 할인율 적용)
+  void applyBestCoupon() {
+    // 간단한 로직: SAVE10(10%), DISCOUNT5(5%), FREESHIP (배송료 3000원 절감) 중 최대 할인 선택
+    double couponDiscount = 0.0;
+    double freeShipBenefit = (shippingFee > 3000) ? shippingFee - 3000 : 3000;
+    if (totalPrice * 0.1 > totalPrice * 0.05 &&
+        totalPrice * 0.1 > freeShipBenefit) {
+      couponDiscount = 0.1;
+    } else if (totalPrice * 0.05 > freeShipBenefit) {
+      couponDiscount = 0.05;
+    }
+    setState(() {
+      discount = couponDiscount;
+      if (couponDiscount == 0.0 && totalPrice >= 30000) {
+        shippingFee = 0;
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('최적 쿠폰이 자동 적용되었습니다!')),
+    );
+  }
+
   Future<void> processCheckout() async {
     setState(() => isLoading = true);
     await Future.delayed(const Duration(seconds: 2));
@@ -173,6 +204,7 @@ class _CartScreenState extends State<CartScreen> {
     orderHistory.add({
       'items': List<Map<String, dynamic>>.from(cartItems),
       'total': finalPrice,
+      'earnedPoints': earnedPoints,
       'date': DateTime.now().toString(),
     });
     setState(() {
@@ -183,7 +215,7 @@ class _CartScreenState extends State<CartScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('결제 완료!'),
-        content: const Text('결제가 성공적으로 완료되었습니다. 감사합니다!'),
+        content: Text('결제가 완료되었습니다.\n적립 포인트: $earnedPoints point'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -236,7 +268,8 @@ class _CartScreenState extends State<CartScreen> {
   // 장바구니 공유 (실제 공유 기능은 share_plus 패키지 사용 가능)
   void shareCart() {
     String cartContent = cartItems
-        .map((item) => "${item['name']} - ₩${item['price']} x ${item['quantity']}")
+        .map((item) =>
+    "${item['name']} - ₩${item['price']} x ${item['quantity']}")
         .join("\n");
     // Share.share(cartContent);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -300,7 +333,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 상품 상세보기 (메모 및 평점 수정 가능)
+  // 상품 상세보기 (메모, 평점 및 리뷰 보기 기능 포함)
   void showItemDetails(Map<String, dynamic> item, int index) {
     TextEditingController noteController =
     TextEditingController(text: item['note']);
@@ -344,6 +377,40 @@ class _CartScreenState extends State<CartScreen> {
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,
+              ),
+              const SizedBox(height: 8),
+              // 리뷰 보기 버튼 (샘플 리뷰)
+              ElevatedButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('상품 리뷰'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          ListTile(
+                            leading: Icon(Icons.person),
+                            title: Text('사용자A'),
+                            subtitle: Text('훌륭한 제품입니다!'),
+                          ),
+                          ListTile(
+                            leading: Icon(Icons.person),
+                            title: Text('사용자B'),
+                            subtitle: Text('가격 대비 만족스럽습니다.'),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('닫기'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: const Text('리뷰 보기'),
               ),
             ],
           ),
@@ -553,8 +620,7 @@ class _CartScreenState extends State<CartScreen> {
                                 : '₩${item['price']} x ${item['quantity']}'),
                             trailing: item['soldOut']
                                 ? ElevatedButton(
-                              onPressed: () =>
-                                  requestRestockNotification(item['name']),
+                              onPressed: () => requestRestockNotification(item['name']),
                               child: const Text('재입고 알림'),
                             )
                                 : Row(
@@ -606,15 +672,16 @@ class _CartScreenState extends State<CartScreen> {
                     },
                     icon: const Icon(Icons.delete),
                     label: const Text('선택 삭제'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(primary: Colors.red),
                   ),
                 ),
                 const SizedBox(height: 10),
-                // 배송 옵션, 총 합계, 프로모션 및 결제 영역
+                // 배송 옵션, 선물 포장, 총 합계, 프로모션, 포인트 및 결제 영역
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
+                      // 배송 옵션
                       DropdownButton<String>(
                         value: selectedShipping,
                         onChanged: (value) {
@@ -627,6 +694,22 @@ class _CartScreenState extends State<CartScreen> {
                             .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                             .toList(),
                       ),
+                      // 선물 포장 옵션
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('선물 포장 (추가 ₩500)'),
+                          Switch(
+                            value: giftWrap,
+                            onChanged: (value) {
+                              setState(() {
+                                giftWrap = value;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      // 총 합계 및 포인트
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -637,16 +720,26 @@ class _CartScreenState extends State<CartScreen> {
                           Text(
                             '₩${finalPrice.toStringAsFixed(2)}',
                             style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal),
                           ),
                         ],
                       ),
+                      Text('예상 적립 포인트: $earnedPoints point'),
+                      const SizedBox(height: 8),
+                      // 프로모션 코드 입력 및 최적 쿠폰 적용 버튼
                       TextField(
                         decoration: const InputDecoration(
                           hintText: '프로모션 코드를 입력하세요',
                           border: OutlineInputBorder(),
                         ),
                         onSubmitted: (value) => applyDiscount(value),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: applyBestCoupon,
+                        child: const Text('최적 쿠폰 자동 적용'),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
@@ -706,7 +799,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                     ],
                   ),
-                // 추천 상품 영역
+                // 추천 상품 영역 및 카테고리 필터
                 const Divider(),
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -722,7 +815,6 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                 ),
-                // 추천 상품 카테고리 필터
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: DropdownButton<String>(
@@ -777,7 +869,6 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
           ),
-          // 결제 진행 중 전체 오버레이
           if (isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
@@ -785,7 +876,6 @@ class _CartScreenState extends State<CartScreen> {
             ),
         ],
       ),
-      // Floating Action Button: 최상단으로 스크롤
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _scrollController.animateTo(
