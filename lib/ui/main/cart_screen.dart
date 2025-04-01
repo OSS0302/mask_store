@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({Key? key}) : super(key: key);
-
   @override
   State<CartScreen> createState() => _CartScreenState();
 }
@@ -36,7 +35,6 @@ class _CartScreenState extends State<CartScreen> {
       'note': '',
     },
   ];
-
   List<Map<String, dynamic>> savedItems = [];
   List<Map<String, dynamic>> recentlyViewed = [];
   List<Map<String, dynamic>> removedItems = [];
@@ -75,6 +73,10 @@ class _CartScreenState extends State<CartScreen> {
 
   final ScrollController _scrollController = ScrollController();
 
+  // 검색 기능 관련
+  bool isSearching = false;
+  String searchQuery = "";
+
   double get totalPrice => cartItems.fold(
     0.0,
         (sum, item) => sum + (item['price'] * item['quantity']),
@@ -90,6 +92,14 @@ class _CartScreenState extends State<CartScreen> {
   ) * discount;
 
   int get earnedPoints => (finalPrice * 0.01).round();
+
+  List<Map<String, dynamic>> get filteredCartItems {
+    if (searchQuery.isEmpty) return cartItems;
+    return cartItems
+        .where((item) =>
+        item['name'].toString().toLowerCase().contains(searchQuery.toLowerCase()))
+        .toList();
+  }
 
   // 기본 기능들
   void toggleWishlist(int index) {
@@ -241,6 +251,18 @@ class _CartScreenState extends State<CartScreen> {
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                orderHistory.clear();
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('주문 내역이 삭제되었습니다.')),
+              );
+            },
+            child: const Text('전체 주문 삭제', style: TextStyle(color: Colors.red)),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('닫기'),
@@ -516,9 +538,31 @@ class _CartScreenState extends State<CartScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('장바구니'),
+        title: isSearching
+            ? TextField(
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: '상품 검색...',
+            border: InputBorder.none,
+          ),
+          onChanged: (value) {
+            setState(() {
+              searchQuery = value;
+            });
+          },
+        )
+            : const Text('장바구니'),
         backgroundColor: isDarkMode ? Colors.black : Colors.teal,
         actions: [
+          IconButton(
+            icon: Icon(isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                isSearching = !isSearching;
+                searchQuery = "";
+              });
+            },
+          ),
           IconButton(icon: const Icon(Icons.share), onPressed: shareCart),
           IconButton(icon: const Icon(Icons.save), onPressed: saveCart),
           IconButton(icon: const Icon(Icons.folder_open), onPressed: loadCart),
@@ -553,12 +597,13 @@ class _CartScreenState extends State<CartScreen> {
             controller: _scrollController,
             child: Column(
               children: [
+                // 장바구니 리스트 (검색 결과 반영)
                 ListView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
-                  itemCount: cartItems.length,
+                  itemCount: filteredCartItems.length,
                   itemBuilder: (context, index) {
-                    final item = cartItems[index];
+                    final item = filteredCartItems[index];
                     return FadeInUp(
                       child: Card(
                         margin: const EdgeInsets.all(8.0),
@@ -576,7 +621,7 @@ class _CartScreenState extends State<CartScreen> {
                               },
                             ),
                             title: GestureDetector(
-                              onTap: () => showItemDetails(item, index),
+                              onTap: () => showItemDetails(item, cartItems.indexOf(item)),
                               child: Text(item['name']),
                             ),
                             subtitle: Text(item['soldOut']
@@ -593,13 +638,13 @@ class _CartScreenState extends State<CartScreen> {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.remove_circle_outline),
-                                  onPressed: () => changeQuantity(index, -1),
+                                  onPressed: () => changeQuantity(cartItems.indexOf(item), -1),
                                 ),
                                 Text('${item['quantity']}',
                                     style: const TextStyle(fontSize: 16)),
                                 IconButton(
                                   icon: const Icon(Icons.add_circle_outline),
-                                  onPressed: () => changeQuantity(index, 1),
+                                  onPressed: () => changeQuantity(cartItems.indexOf(item), 1),
                                 ),
                                 IconButton(
                                   icon: Icon(
@@ -608,11 +653,11 @@ class _CartScreenState extends State<CartScreen> {
                                         : Icons.favorite_border,
                                     color: item['wishlist'] ? Colors.red : null,
                                   ),
-                                  onPressed: () => toggleWishlist(index),
+                                  onPressed: () => toggleWishlist(cartItems.indexOf(item)),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.bookmark_border),
-                                  onPressed: () => moveToSaved(index),
+                                  onPressed: () => moveToSaved(cartItems.indexOf(item)),
                                 ),
                               ],
                             ),
@@ -682,7 +727,8 @@ class _CartScreenState extends State<CartScreen> {
                           ),
                           Text(
                             '₩${finalPrice.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
                           ),
                         ],
                       ),
@@ -716,7 +762,7 @@ class _CartScreenState extends State<CartScreen> {
                     children: [
                       const Divider(),
                       Padding(
-                        padding: EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(16.0),
                         child: Text(
                           '최근 본 상품',
                           style: TextStyle(
@@ -835,9 +881,11 @@ class _CartScreenState extends State<CartScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _scrollController.animateTo(0,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut);
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
         },
         child: const Icon(Icons.arrow_upward),
       ),
