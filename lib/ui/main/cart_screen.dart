@@ -681,7 +681,7 @@ class _CartScreenState extends State<CartScreen> {
                     },
                     icon: const Icon(Icons.delete),
                     label: const Text('선택 삭제'),
-                    style: ElevatedButton.styleFrom(primary: Colors.red),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   ),
                 ),
                 const SizedBox(height: 10),
