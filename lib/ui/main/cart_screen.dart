@@ -35,6 +35,7 @@ class _CartScreenState extends State<CartScreen> {
       'note': '',
     },
   ];
+
   List<Map<String, dynamic>> savedItems = [];
   List<Map<String, dynamic>> recentlyViewed = [];
   List<Map<String, dynamic>> removedItems = [];
@@ -73,14 +74,22 @@ class _CartScreenState extends State<CartScreen> {
 
   final ScrollController _scrollController = ScrollController();
 
-  // 검색 기능 관련
+  // 검색 관련
   bool isSearching = false;
   String searchQuery = "";
+  List<Map<String, dynamic>> get filteredCartItems {
+    if (searchQuery.isEmpty) return cartItems;
+    return cartItems
+        .where((item) =>
+        item['name'].toString().toLowerCase().contains(searchQuery.toLowerCase()))
+        .toList();
+  }
 
   double get totalPrice => cartItems.fold(
     0.0,
         (sum, item) => sum + (item['price'] * item['quantity']),
-  ) * (1 - discount);
+  ) *
+      (1 - discount);
 
   double get finalPrice => totalPrice >= 50000
       ? totalPrice
@@ -89,17 +98,10 @@ class _CartScreenState extends State<CartScreen> {
   double get discountAmount => cartItems.fold(
     0.0,
         (sum, item) => sum + (item['price'] * item['quantity']),
-  ) * discount;
+  ) *
+      discount;
 
   int get earnedPoints => (finalPrice * 0.01).round();
-
-  List<Map<String, dynamic>> get filteredCartItems {
-    if (searchQuery.isEmpty) return cartItems;
-    return cartItems
-        .where((item) =>
-        item['name'].toString().toLowerCase().contains(searchQuery.toLowerCase()))
-        .toList();
-  }
 
   // 기본 기능들
   void toggleWishlist(int index) {
@@ -533,6 +535,92 @@ class _CartScreenState extends State<CartScreen> {
         .toList();
   }
 
+  // 상품 비교 기능: 선택한 항목이 2개 이상이면 비교 다이얼로그를 표시합니다.
+  void compareSelectedItems() {
+    List<Map<String, dynamic>> selectedItems =
+    cartItems.where((item) => item['selected']).toList();
+    if (selectedItems.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비교하려면 최소 2개의 상품을 선택하세요.')),
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('상품 비교'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: selectedItems.map((item) {
+              return ListTile(
+                title: Text(item['name']),
+                subtitle: Text('가격: ₩${item['price']} / 평점: ${item['rating']}'),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 바코드 스캔 기능 (시뮬레이션)
+  void simulateBarcodeScan() {
+    TextEditingController barcodeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('바코드 스캔'),
+        content: TextField(
+          controller: barcodeController,
+          decoration: const InputDecoration(
+            hintText: '상품 코드를 입력하세요 (예: TEST)',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              String code = barcodeController.text.trim();
+              if (code == "TEST") {
+                setState(() {
+                  cartItems.add({
+                    'name': '테스트 상품',
+                    'price': 999,
+                    'quantity': 1,
+                    'wishlist': false,
+                    'image': 'assets/test.png',
+                    'soldOut': false,
+                    'selected': false,
+                    'rating': 5.0,
+                    'note': '',
+                  });
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('테스트 상품이 추가되었습니다.')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('유효하지 않은 코드입니다.')),
+                );
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('확인'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -563,6 +651,8 @@ class _CartScreenState extends State<CartScreen> {
               });
             },
           ),
+          IconButton(icon: const Icon(Icons.compare), onPressed: compareSelectedItems),
+          IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: simulateBarcodeScan),
           IconButton(icon: const Icon(Icons.share), onPressed: shareCart),
           IconButton(icon: const Icon(Icons.save), onPressed: saveCart),
           IconButton(icon: const Icon(Icons.folder_open), onPressed: loadCart),
@@ -597,7 +687,6 @@ class _CartScreenState extends State<CartScreen> {
             controller: _scrollController,
             child: Column(
               children: [
-                // 장바구니 리스트 (검색 결과 반영)
                 ListView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
@@ -681,7 +770,7 @@ class _CartScreenState extends State<CartScreen> {
                     },
                     icon: const Icon(Icons.delete),
                     label: const Text('선택 삭제'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(primary: Colors.red),
                   ),
                 ),
                 const SizedBox(height: 10),
