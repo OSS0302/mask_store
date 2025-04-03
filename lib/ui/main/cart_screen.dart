@@ -535,7 +535,29 @@ class _CartScreenState extends State<CartScreen> {
         .toList();
   }
 
-  // 상품 비교 기능: 선택한 항목이 2개 이상이면 비교 다이얼로그를 표시합니다.
+  // 신규 기능: 위시리스트 페이지로 이동
+  void viewWishlist() {
+    final wishlistItems = cartItems.where((item) => item['wishlist'] == true).toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WishlistScreen(
+          wishlistItems: wishlistItems,
+          onRemove: (item) {
+            setState(() {
+              item['wishlist'] = false;
+            });
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('위시리스트에서 삭제되었습니다.')),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // 신규 기능: 상품 비교 기능 (선택한 상품 2개 이상 비교)
   void compareSelectedItems() {
     List<Map<String, dynamic>> selectedItems =
     cartItems.where((item) => item['selected']).toList();
@@ -569,7 +591,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 바코드 스캔 기능 (시뮬레이션)
+  // 신규 기능: 바코드 스캔 시뮬레이션
   void simulateBarcodeScan() {
     TextEditingController barcodeController = TextEditingController();
     showDialog(
@@ -653,6 +675,7 @@ class _CartScreenState extends State<CartScreen> {
           ),
           IconButton(icon: const Icon(Icons.compare), onPressed: compareSelectedItems),
           IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: simulateBarcodeScan),
+          IconButton(icon: const Icon(Icons.favorite), onPressed: viewWishlist),
           IconButton(icon: const Icon(Icons.share), onPressed: shareCart),
           IconButton(icon: const Icon(Icons.save), onPressed: saveCart),
           IconButton(icon: const Icon(Icons.folder_open), onPressed: loadCart),
@@ -710,7 +733,8 @@ class _CartScreenState extends State<CartScreen> {
                               },
                             ),
                             title: GestureDetector(
-                              onTap: () => showItemDetails(item, cartItems.indexOf(item)),
+                              onTap: () =>
+                                  showItemDetails(item, cartItems.indexOf(item)),
                               child: Text(item['name']),
                             ),
                             subtitle: Text(item['soldOut']
@@ -718,8 +742,7 @@ class _CartScreenState extends State<CartScreen> {
                                 : '₩${item['price']} x ${item['quantity']}'),
                             trailing: item['soldOut']
                                 ? ElevatedButton(
-                              onPressed: () =>
-                                  requestRestockNotification(item['name']),
+                              onPressed: () => requestRestockNotification(item['name']),
                               child: const Text('재입고 알림'),
                             )
                                 : Row(
@@ -727,13 +750,15 @@ class _CartScreenState extends State<CartScreen> {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.remove_circle_outline),
-                                  onPressed: () => changeQuantity(cartItems.indexOf(item), -1),
+                                  onPressed: () =>
+                                      changeQuantity(cartItems.indexOf(item), -1),
                                 ),
                                 Text('${item['quantity']}',
                                     style: const TextStyle(fontSize: 16)),
                                 IconButton(
                                   icon: const Icon(Icons.add_circle_outline),
-                                  onPressed: () => changeQuantity(cartItems.indexOf(item), 1),
+                                  onPressed: () =>
+                                      changeQuantity(cartItems.indexOf(item), 1),
                                 ),
                                 IconButton(
                                   icon: Icon(
@@ -977,6 +1002,42 @@ class _CartScreenState extends State<CartScreen> {
           );
         },
         child: const Icon(Icons.arrow_upward),
+      ),
+    );
+  }
+}
+
+// 위시리스트 페이지
+class WishlistScreen extends StatelessWidget {
+  final List<Map<String, dynamic>> wishlistItems;
+  final Function(Map<String, dynamic>) onRemove;
+  const WishlistScreen({Key? key, required this.wishlistItems, required this.onRemove})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('위시리스트'),
+        backgroundColor: isDarkMode ? Colors.black : Colors.teal,
+      ),
+      body: wishlistItems.isEmpty
+          ? const Center(child: Text("위시리스트가 비어 있습니다."))
+          : ListView.builder(
+        itemCount: wishlistItems.length,
+        itemBuilder: (context, index) {
+          final item = wishlistItems[index];
+          return ListTile(
+            leading: Image.asset(item['image'], width: 50, height: 50),
+            title: Text(item['name']),
+            subtitle: Text("₩${item['price']}"),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => onRemove(item),
+            ),
+          );
+        },
       ),
     );
   }
