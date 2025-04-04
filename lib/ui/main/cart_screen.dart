@@ -11,6 +11,7 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  // 장바구니 데이터
   List<Map<String, dynamic>> cartItems = [
     {
       'name': 'KF94 마스크',
@@ -36,10 +37,17 @@ class _CartScreenState extends State<CartScreen> {
     },
   ];
 
+  // 기타 데이터
   List<Map<String, dynamic>> savedItems = [];
   List<Map<String, dynamic>> recentlyViewed = [];
   List<Map<String, dynamic>> removedItems = [];
   List<Map<String, dynamic>> orderHistory = [];
+
+  // 리뷰 데이터 (상품명별)
+  Map<String, List<String>> productReviews = {
+    'KF94 마스크': ['훌륭해요', '추천합니다'],
+    'N95 마스크': ['가격 대비 만족', '좋은 품질이에요'],
+  };
 
   double discount = 0.0;
   bool isLoading = false;
@@ -50,6 +58,7 @@ class _CartScreenState extends State<CartScreen> {
   List<String> availableCoupons = ["SAVE10", "FREESHIP", "DISCOUNT5"];
   String sortOption = "none";
 
+  // 추천 상품 (카테고리 포함)
   final List<Map<String, dynamic>> recommendedProducts = [
     {
       'name': '손 소독제',
@@ -74,34 +83,38 @@ class _CartScreenState extends State<CartScreen> {
 
   final ScrollController _scrollController = ScrollController();
 
+  // 배송 주소 및 포인트 사용
+  String shippingAddress = "";
+  int availablePoints = 500;
+  int pointsUsed = 0;
+
   // 검색 관련
   bool isSearching = false;
   String searchQuery = "";
   List<Map<String, dynamic>> get filteredCartItems {
     if (searchQuery.isEmpty) return cartItems;
-    return cartItems
-        .where((item) =>
-        item['name'].toString().toLowerCase().contains(searchQuery.toLowerCase()))
-        .toList();
+    return cartItems.where((item) => item['name']
+        .toString()
+        .toLowerCase()
+        .contains(searchQuery.toLowerCase())).toList();
   }
 
+  // 금액 계산
   double get totalPrice => cartItems.fold(
     0.0,
         (sum, item) => sum + (item['price'] * item['quantity']),
   ) *
       (1 - discount);
-
   double get finalPrice => totalPrice >= 50000
       ? totalPrice
       : totalPrice + shippingFee + (giftWrap ? giftWrapFee : 0);
-
   double get discountAmount => cartItems.fold(
     0.0,
         (sum, item) => sum + (item['price'] * item['quantity']),
   ) *
       discount;
-
   int get earnedPoints => (finalPrice * 0.01).round();
+  double get payablePrice => finalPrice - pointsUsed;
 
   // 기본 기능들
   void toggleWishlist(int index) {
@@ -148,16 +161,13 @@ class _CartScreenState extends State<CartScreen> {
         content: const Text('선택한 상품을 삭제하시겠습니까?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
+              onPressed: () => Navigator.pop(context), child: const Text('취소')),
           TextButton(
-            onPressed: () {
-              removeSelectedItems();
-              Navigator.pop(context);
-            },
-            child: const Text('삭제', style: TextStyle(color: Colors.red)),
-          ),
+              onPressed: () {
+                removeSelectedItems();
+                Navigator.pop(context);
+              },
+              child: const Text('삭제', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -208,9 +218,10 @@ class _CartScreenState extends State<CartScreen> {
     await Future.delayed(const Duration(seconds: 2));
     orderHistory.add({
       'items': List<Map<String, dynamic>>.from(cartItems),
-      'total': finalPrice,
+      'total': payablePrice,
       'earnedPoints': earnedPoints,
       'date': DateTime.now().toString(),
+      'shippingAddress': shippingAddress,
     });
     setState(() {
       isLoading = false;
@@ -220,12 +231,12 @@ class _CartScreenState extends State<CartScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('결제 완료!'),
-        content: Text('결제가 완료되었습니다.\n적립 포인트: $earnedPoints point'),
+        content: Text(
+            '결제가 완료되었습니다.\n최종 결제 금액: ₩${payablePrice.toStringAsFixed(2)}\n적립 포인트: $earnedPoints point'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인')),
         ],
       ),
     );
@@ -247,7 +258,7 @@ class _CartScreenState extends State<CartScreen> {
               final order = orderHistory[index];
               return ListTile(
                 title: Text('총액: ₩${order['total'].toStringAsFixed(2)}'),
-                subtitle: Text('주문일: ${order['date']}'),
+                subtitle: Text('주문일: ${order['date']}\n주소: ${order['shippingAddress']}'),
               );
             },
           ),
@@ -266,9 +277,8 @@ class _CartScreenState extends State<CartScreen> {
             child: const Text('전체 주문 삭제', style: TextStyle(color: Colors.red)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('닫기')),
         ],
       ),
     );
@@ -390,35 +400,54 @@ class _CartScreenState extends State<CartScreen> {
               const SizedBox(height: 8),
               ElevatedButton(
                 onPressed: () {
+                  TextEditingController reviewController = TextEditingController();
                   showDialog(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('상품 리뷰'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          ListTile(
-                            leading: Icon(Icons.person),
-                            title: Text('사용자A'),
-                            subtitle: Text('훌륭한 제품입니다!'),
+                    builder: (context) {
+                      List<String> reviews = productReviews[item['name']] ?? [];
+                      return AlertDialog(
+                        title: const Text("상품 리뷰"),
+                        content: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              ...reviews.map((r) => ListTile(
+                                leading: const Icon(Icons.person),
+                                title: Text(r),
+                              )),
+                              TextField(
+                                controller: reviewController,
+                                decoration: const InputDecoration(hintText: "리뷰 작성"),
+                              ),
+                            ],
                           ),
-                          ListTile(
-                            leading: Icon(Icons.person),
-                            title: Text('사용자B'),
-                            subtitle: Text('가격 대비 만족스럽습니다.'),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              String newReview = reviewController.text.trim();
+                              if (newReview.isNotEmpty) {
+                                setState(() {
+                                  if (productReviews.containsKey(item['name'])) {
+                                    productReviews[item['name']]!.add(newReview);
+                                  } else {
+                                    productReviews[item['name']] = [newReview];
+                                  }
+                                });
+                              }
+                              Navigator.pop(context);
+                            },
+                            child: const Text("리뷰 추가"),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text("닫기"),
                           ),
                         ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text('닫기'),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
-                child: const Text('리뷰 보기'),
+                child: const Text("리뷰 보기"),
               ),
             ],
           ),
@@ -492,9 +521,8 @@ class _CartScreenState extends State<CartScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('닫기')),
         ],
       ),
     );
@@ -508,21 +536,19 @@ class _CartScreenState extends State<CartScreen> {
         content: const Text('모든 상품을 삭제하시겠습니까?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소')),
           TextButton(
-            onPressed: () {
-              setState(() {
-                cartItems.clear();
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('전체 상품이 삭제되었습니다.')),
-              );
-            },
-            child: const Text('삭제', style: TextStyle(color: Colors.red)),
-          ),
+              onPressed: () {
+                setState(() {
+                  cartItems.clear();
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('전체 상품이 삭제되었습니다.')),
+                );
+              },
+              child: const Text('삭제', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -557,7 +583,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // 신규 기능: 상품 비교 기능 (선택한 상품 2개 이상 비교)
+  // 신규 기능: 상품 비교 기능
   void compareSelectedItems() {
     List<Map<String, dynamic>> selectedItems =
     cartItems.where((item) => item['selected']).toList();
@@ -583,9 +609,8 @@ class _CartScreenState extends State<CartScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('닫기')),
         ],
       ),
     );
@@ -606,38 +631,62 @@ class _CartScreenState extends State<CartScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              String code = barcodeController.text.trim();
-              if (code == "TEST") {
-                setState(() {
-                  cartItems.add({
-                    'name': '테스트 상품',
-                    'price': 999,
-                    'quantity': 1,
-                    'wishlist': false,
-                    'image': 'assets/test.png',
-                    'soldOut': false,
-                    'selected': false,
-                    'rating': 5.0,
-                    'note': '',
+              onPressed: () {
+                String code = barcodeController.text.trim();
+                if (code == "TEST") {
+                  setState(() {
+                    cartItems.add({
+                      'name': '테스트 상품',
+                      'price': 999,
+                      'quantity': 1,
+                      'wishlist': false,
+                      'image': 'assets/test.png',
+                      'soldOut': false,
+                      'selected': false,
+                      'rating': 5.0,
+                      'note': '',
+                    });
                   });
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('테스트 상품이 추가되었습니다.')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('유효하지 않은 코드입니다.')),
-                );
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('확인'),
-          ),
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('테스트 상품이 추가되었습니다.')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('유효하지 않은 코드입니다.')),
+                  );
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('확인')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소')),
+        ],
+      ),
+    );
+  }
+
+  // 신규 기능: 배송 주소 입력
+  void editShippingAddress() {
+    TextEditingController addressController =
+    TextEditingController(text: shippingAddress);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("배송 주소 입력"),
+        content: TextField(
+          controller: addressController,
+          decoration: const InputDecoration(hintText: "배송 주소를 입력하세요"),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () {
+                setState(() {
+                  shippingAddress = addressController.text;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("저장")),
         ],
       ),
     );
@@ -673,9 +722,13 @@ class _CartScreenState extends State<CartScreen> {
               });
             },
           ),
-          IconButton(icon: const Icon(Icons.compare), onPressed: compareSelectedItems),
-          IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: simulateBarcodeScan),
-          IconButton(icon: const Icon(Icons.favorite), onPressed: viewWishlist),
+          IconButton(
+              icon: const Icon(Icons.compare), onPressed: compareSelectedItems),
+          IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: simulateBarcodeScan),
+          IconButton(
+              icon: const Icon(Icons.favorite), onPressed: viewWishlist),
           IconButton(icon: const Icon(Icons.share), onPressed: shareCart),
           IconButton(icon: const Icon(Icons.save), onPressed: saveCart),
           IconButton(icon: const Icon(Icons.folder_open), onPressed: loadCart),
@@ -690,9 +743,12 @@ class _CartScreenState extends State<CartScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: "가격 낮은 순", child: Text("가격 낮은 순")),
-              const PopupMenuItem(value: "가격 높은 순", child: Text("가격 높은 순")),
-              const PopupMenuItem(value: "전체 삭제", child: Text("전체 삭제")),
+              const PopupMenuItem(
+                  value: "가격 낮은 순", child: Text("가격 낮은 순")),
+              const PopupMenuItem(
+                  value: "가격 높은 순", child: Text("가격 높은 순")),
+              const PopupMenuItem(
+                  value: "전체 삭제", child: Text("전체 삭제")),
             ],
           ),
         ],
@@ -733,8 +789,8 @@ class _CartScreenState extends State<CartScreen> {
                               },
                             ),
                             title: GestureDetector(
-                              onTap: () =>
-                                  showItemDetails(item, cartItems.indexOf(item)),
+                              onTap: () => showItemDetails(
+                                  item, cartItems.indexOf(item)),
                               child: Text(item['name']),
                             ),
                             subtitle: Text(item['soldOut']
@@ -742,36 +798,45 @@ class _CartScreenState extends State<CartScreen> {
                                 : '₩${item['price']} x ${item['quantity']}'),
                             trailing: item['soldOut']
                                 ? ElevatedButton(
-                              onPressed: () => requestRestockNotification(item['name']),
+                              onPressed: () => requestRestockNotification(
+                                  item['name']),
                               child: const Text('재입고 알림'),
                             )
                                 : Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  onPressed: () =>
-                                      changeQuantity(cartItems.indexOf(item), -1),
+                                  icon: const Icon(
+                                      Icons.remove_circle_outline),
+                                  onPressed: () => changeQuantity(
+                                      cartItems.indexOf(item), -1),
                                 ),
                                 Text('${item['quantity']}',
-                                    style: const TextStyle(fontSize: 16)),
+                                    style: const TextStyle(
+                                        fontSize: 16)),
                                 IconButton(
-                                  icon: const Icon(Icons.add_circle_outline),
-                                  onPressed: () =>
-                                      changeQuantity(cartItems.indexOf(item), 1),
+                                  icon: const Icon(
+                                      Icons.add_circle_outline),
+                                  onPressed: () => changeQuantity(
+                                      cartItems.indexOf(item), 1),
                                 ),
                                 IconButton(
                                   icon: Icon(
                                     item['wishlist']
                                         ? Icons.favorite
                                         : Icons.favorite_border,
-                                    color: item['wishlist'] ? Colors.red : null,
+                                    color: item['wishlist']
+                                        ? Colors.red
+                                        : null,
                                   ),
-                                  onPressed: () => toggleWishlist(cartItems.indexOf(item)),
+                                  onPressed: () => toggleWishlist(
+                                      cartItems.indexOf(item)),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.bookmark_border),
-                                  onPressed: () => moveToSaved(cartItems.indexOf(item)),
+                                  icon: const Icon(
+                                      Icons.bookmark_border),
+                                  onPressed: () => moveToSaved(
+                                      cartItems.indexOf(item)),
                                 ),
                               ],
                             ),
@@ -789,7 +854,9 @@ class _CartScreenState extends State<CartScreen> {
                         confirmRemoveSelectedItems();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('삭제할 상품을 선택해주세요.')),
+                          const SnackBar(
+                              content:
+                              Text('삭제할 상품을 선택해주세요.')),
                         );
                       }
                     },
@@ -799,6 +866,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                // 배송, 선물 포장, 배송 주소, 포인트 사용, 결제 영역
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -808,11 +876,13 @@ class _CartScreenState extends State<CartScreen> {
                         onChanged: (value) {
                           setState(() {
                             selectedShipping = value!;
-                            shippingFee = value == "빠른 배송 (₩5000)" ? 5000 : 3000;
+                            shippingFee =
+                            value == "빠른 배송 (₩5000)" ? 5000 : 3000;
                           });
                         },
                         items: ["일반 배송 (₩3000)", "빠른 배송 (₩5000)"]
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                            .map((e) =>
+                            DropdownMenuItem(value: e, child: Text(e)))
                             .toList(),
                       ),
                       Row(
@@ -835,14 +905,55 @@ class _CartScreenState extends State<CartScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          const Text('배송 주소: '),
+                          Text(shippingAddress.isEmpty
+                              ? '입력 안됨'
+                              : shippingAddress),
+                          TextButton(
+                            onPressed: editShippingAddress,
+                            child: const Text('입력'),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('사용 포인트 (최대 $availablePoints): '),
+                          SizedBox(
+                            width: 100,
+                            child: TextField(
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                setState(() {
+                                  pointsUsed =
+                                      int.tryParse(value) ?? 0;
+                                  if (pointsUsed > availablePoints) {
+                                    pointsUsed = availablePoints;
+                                  }
+                                  if (pointsUsed > finalPrice.toInt()) {
+                                    pointsUsed = finalPrice.toInt();
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           const Text(
-                            '총 합계',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            '최종 결제 금액',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            '₩${finalPrice.toStringAsFixed(2)}',
+                            '₩${payablePrice.toStringAsFixed(2)}',
                             style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal),
                           ),
                         ],
                       ),
@@ -864,7 +975,8 @@ class _CartScreenState extends State<CartScreen> {
                       ElevatedButton(
                         onPressed: isLoading ? null : processCheckout,
                         child: isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                            color: Colors.white)
                             : const Text('결제하기'),
                       ),
                     ],
@@ -882,7 +994,9 @@ class _CartScreenState extends State<CartScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.white : Colors.black,
+                            color: isDarkMode
+                                ? Colors.white
+                                : Colors.black,
                           ),
                         ),
                       ),
@@ -899,14 +1013,17 @@ class _CartScreenState extends State<CartScreen> {
                                 width: 100,
                                 padding: const EdgeInsets.all(8.0),
                                 child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.center,
                                   children: [
-                                    Image.asset(item['image'], width: 60, height: 60),
+                                    Image.asset(item['image'],
+                                        width: 60, height: 60),
                                     const SizedBox(height: 4),
                                     Text(
                                       item['name'],
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 12),
+                                      style:
+                                      const TextStyle(fontSize: 12),
                                     ),
                                   ],
                                 ),
@@ -927,7 +1044,9 @@ class _CartScreenState extends State<CartScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
+                        color: isDarkMode
+                            ? Colors.white
+                            : Colors.black,
                       ),
                     ),
                   ),
@@ -942,7 +1061,8 @@ class _CartScreenState extends State<CartScreen> {
                       });
                     },
                     items: ["전체", "위생", "보호"]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .map((e) =>
+                        DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
                   ),
                 ),
@@ -952,7 +1072,8 @@ class _CartScreenState extends State<CartScreen> {
                     scrollDirection: Axis.horizontal,
                     itemCount: filteredRecommendedProducts.length,
                     itemBuilder: (context, index) {
-                      final product = filteredRecommendedProducts[index];
+                      final product =
+                      filteredRecommendedProducts[index];
                       return GestureDetector(
                         onTap: () => addRecommendedProduct(product),
                         child: Card(
@@ -963,17 +1084,20 @@ class _CartScreenState extends State<CartScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Image.asset(product['image'], width: 60, height: 60),
+                                Image.asset(product['image'],
+                                    width: 60, height: 60),
                                 const SizedBox(height: 8),
                                 Text(
                                   product['name'],
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 14),
+                                  style:
+                                  const TextStyle(fontSize: 14),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '₩${product['price']}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
@@ -1011,9 +1135,9 @@ class _CartScreenState extends State<CartScreen> {
 class WishlistScreen extends StatelessWidget {
   final List<Map<String, dynamic>> wishlistItems;
   final Function(Map<String, dynamic>) onRemove;
-  const WishlistScreen({Key? key, required this.wishlistItems, required this.onRemove})
+  const WishlistScreen(
+      {Key? key, required this.wishlistItems, required this.onRemove})
       : super(key: key);
-
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -1029,7 +1153,8 @@ class WishlistScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = wishlistItems[index];
           return ListTile(
-            leading: Image.asset(item['image'], width: 50, height: 50),
+            leading:
+            Image.asset(item['image'], width: 50, height: 50),
             title: Text(item['name']),
             subtitle: Text("₩${item['price']}"),
             trailing: IconButton(
