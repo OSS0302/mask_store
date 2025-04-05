@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/model/mask_store.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -13,7 +14,8 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String _selectedFilter = 'all'; // 필터 상태 ('all', 'plenty', 'some', 'few', 'empty')
+  String _selectedFilter = 'all';
+  String _selectedSort = 'name'; // 'name' or 'distance'
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         store.storeName.contains(_searchQuery) &&
         (_selectedFilter == 'all' || store.remainStatus == _selectedFilter))
         .toList();
+
+    if (_selectedSort == 'name') {
+      favoriteStores.sort((a, b) => a.storeName.compareTo(b.storeName));
+    } else if (_selectedSort == 'distance') {
+      favoriteStores.sort((a, b) => a.distance.compareTo(b.distance));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -40,6 +48,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         backgroundColor: isDarkMode ? Colors.black : Colors.teal.shade300,
         elevation: 0,
         actions: [
+          if (favoriteStores.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.share, color: Colors.white),
+              onPressed: () => _shareFavorites(favoriteStores),
+            ),
           if (favoriteStores.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.white),
@@ -90,17 +103,42 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none,
                   ),
-                  hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
+                  hintStyle:
+                  TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                 ),
               ),
             ),
             _buildFilterChips(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Text('정렬:', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 10),
+                  DropdownButton<String>(
+                    value: _selectedSort,
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedSort = value;
+                        });
+                      }
+                    },
+                    items: const [
+                      DropdownMenuItem(value: 'name', child: Text('이름순')),
+                      DropdownMenuItem(value: 'distance', child: Text('거리순')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: favoriteStores.isEmpty
                   ? _buildEmptyFavorites(isDarkMode)
                   : ListView.builder(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 10.0),
                 itemCount: favoriteStores.length,
                 itemBuilder: (context, index) {
                   final store = favoriteStores[index];
@@ -116,7 +154,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   Widget _buildFilterChips() {
     final filters = ['all', 'plenty', 'some', 'few', 'empty'];
-    final filterLabels = {'all': '전체', 'plenty': '충분', 'some': '보통', 'few': '부족', 'empty': '없음'};
+    final filterLabels = {
+      'all': '전체',
+      'plenty': '충분',
+      'some': '보통',
+      'few': '부족',
+      'empty': '없음'
+    };
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -231,7 +275,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       const SizedBox(width: 4),
                       Text(
                         '${store.distance.toStringAsFixed(2)} km',
-                        style: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+                        style: TextStyle(
+                            color: isDarkMode
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -242,8 +289,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       _buildStatusChip(store.remainStatus),
                       IconButton(
                         icon: Icon(
-                          store.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: store.isFavorite ? Colors.red : (isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                          store.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: store.isFavorite
+                              ? Colors.red
+                              : (isDarkMode
+                              ? Colors.grey.shade400
+                              : Colors.grey),
                         ),
                         onPressed: () {
                           context.read<MaskStoreViewModel>().toggleFavorite(store);
@@ -312,5 +365,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ],
       ),
     );
+  }
+
+  void _shareFavorites(List<MaskStore> stores) {
+    final storeList = stores.map((store) =>
+    '- ${store.storeName} (${store.distance.toStringAsFixed(2)} km)').join('\n');
+
+    Share.share('내 즐겨찾기 약국 목록:\n\n$storeList');
   }
 }
