@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../data/model/mask_store.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -52,6 +53,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             IconButton(
               icon: const Icon(Icons.share, color: Colors.white),
               onPressed: () => _shareFavorites(favoriteStores),
+            ),
+          if (favoriteStores.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.map, color: Colors.white),
+              onPressed: () => _openInMap(favoriteStores),
             ),
           if (favoriteStores.isNotEmpty)
             IconButton(
@@ -372,5 +378,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     '- ${store.storeName} (${store.distance.toStringAsFixed(2)} km)').join('\n');
 
     Share.share('내 즐겨찾기 약국 목록:\n\n$storeList');
+  }
+
+  void _openInMap(List<MaskStore> stores) async {
+    if (stores.isEmpty) return;
+
+    final firstStore = stores.first;
+    final url = 'https://www.google.com/maps/search/?api=1&query=${firstStore.lat},${firstStore.lng}';
+
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw '지도를 열 수 없습니다: $url';
+    }
   }
 }
