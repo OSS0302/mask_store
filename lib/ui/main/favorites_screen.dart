@@ -384,7 +384,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (stores.isEmpty) return;
 
     final firstStore = stores.first;
-    final url = 'https://www.google.com/maps/search/?api=1&query=${firstStore.lat},${firstStore.lng}';
+    final url = 'https://www.google.com/maps/search/?api=1&query=${firstStore.latitude},${firstStore.longitude}';
 
     if (await canLaunch(url)) {
       await launch(url);
