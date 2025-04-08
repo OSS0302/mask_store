@@ -148,7 +148,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 itemCount: favoriteStores.length,
                 itemBuilder: (context, index) {
                   final store = favoriteStores[index];
-                  return _buildStoreCard(store, context, isDarkMode);
+                  return Dismissible(
+                    key: Key(store.storeName),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      color: Colors.red,
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    onDismissed: (_) {
+                      context.read<MaskStoreViewModel>().toggleFavorite(store);
+                    },
+                    child: _buildStoreCard(store, context, isDarkMode),
+                  );
                 },
               ),
             ),
@@ -157,6 +170,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       ),
     );
   }
+
+  // ... 나머지 코드는 그대로 유지 (기존 위젯, 메서드, _shareFavorites 등)
 
   Widget _buildFilterChips() {
     final filters = ['all', 'plenty', 'some', 'few', 'empty'];
