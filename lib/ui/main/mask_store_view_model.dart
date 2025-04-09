@@ -47,6 +47,8 @@ class MaskStoreViewModel extends ChangeNotifier {
     stores: List.unmodifiable([]),
   );
 
+
+
   MaskStoreState get state => _state;
 
   String _searchQuery = ''; // 검색어 상태 관리
@@ -55,6 +57,32 @@ class MaskStoreViewModel extends ChangeNotifier {
   Future<void> refreshStores() async {
     await fetchStores();
   }
+
+  void updateStores(List<MaskStore> newStores) {
+    for (var newStore in newStores) {
+      final existing = _state.stores.firstWhere(
+              (s) => s.storeName == newStore.storeName,
+          orElse: () => newStore);
+
+      if (existing.isFavorite &&
+          existing.remainStatus != 'plenty' &&
+          newStore.remainStatus == 'plenty') {
+        // 재고 상태가 plenty로 바뀐 즐겨찾기 약국 -> 알림!
+        _notifyPlentyStatus(newStore);
+      }
+
+      newStore.previousRemainStatus = existing.remainStatus;
+    }
+
+    _state = _state.copyWith(stores: newStores);
+    notifyListeners();
+  }
+
+  void _notifyPlentyStatus(MaskStore store) {
+    // 여기에 콜백이나 상태 업데이트 후 Snackbar 표시하도록 설정
+    _plentyAlertStore = store;
+  }
+
 
   Future<void> fetchStores() async {
     _state = state.copyWith(isLoading: true);
@@ -104,6 +132,8 @@ class MaskStoreViewModel extends ChangeNotifier {
     _isDarkMode = !_isDarkMode;
     notifyListeners();
   }
+
+
 
   // 알림 설정 토글
   void toggleNotifications() {
@@ -174,4 +204,12 @@ class MaskStoreViewModel extends ChangeNotifier {
     _cartItems.remove(item);
     notifyListeners(); // 상태 변경 알림
   }
+
+  MaskStore? _plentyAlertStore;
+  MaskStore? get plentyAlertStore => _plentyAlertStore;
+
+  void clearPlentyAlert() {
+    _plentyAlertStore = null;
+  }
+
 }

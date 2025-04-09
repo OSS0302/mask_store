@@ -6,6 +6,7 @@ class MaskStore {
   final double latitude;
   final double longitude;
   bool isFavorite;
+  String previousRemainStatus;
 
   MaskStore({
     required this.storeName,
@@ -15,6 +16,7 @@ class MaskStore {
     required this.latitude,
     required this.longitude,
     this.isFavorite = false,
+    this.previousRemainStatus = '',
   });
 
   // 즐겨찾기 상태를 토글하는 메서드

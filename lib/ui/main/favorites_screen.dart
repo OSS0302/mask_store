@@ -19,6 +19,24 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   String _selectedSort = 'name'; // 'name' or 'distance'
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final vm = context.read<MaskStoreViewModel>();
+    final alertStore = vm.plentyAlertStore;
+    if (alertStore != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${alertStore.storeName} 약국에 재고가 충분해졌습니다!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        vm.clearPlentyAlert(); // 알림 표시 후 초기화
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
     final isDarkMode = maskStoreViewModel.isDarkMode;
