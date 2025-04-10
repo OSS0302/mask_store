@@ -189,8 +189,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  // ... 나머지 코드는 그대로 유지 (기존 위젯, 메서드, _shareFavorites 등)
-
   Widget _buildFilterChips() {
     final filters = ['all', 'plenty', 'some', 'few', 'empty'];
     final filterLabels = {
