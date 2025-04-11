@@ -79,35 +79,63 @@ class MaskStoreScreen extends StatelessWidget {
 
   Widget _buildSearchAndFilter(BuildContext context, MaskStoreViewModel viewModel) {
     final isDarkMode = viewModel.isDarkMode;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              onChanged: viewModel.filterStores,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: isDarkMode ? Colors.grey.shade800.withOpacity(0.9) : Colors.white,
-                hintText: '약국 이름 검색',
-                hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  onChanged: viewModel.filterStores,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: isDarkMode ? Colors.grey.shade800.withOpacity(0.9) : Colors.white,
+                    hintText: '약국 이름 검색',
+                    hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.teal),
+                  ),
                 ),
-                prefixIcon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.teal),
               ),
-            ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: Icon(Icons.filter_list, color: isDarkMode ? Colors.white : Colors.teal),
+                onPressed: () => _showSortFilterBottomSheet(context, viewModel),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(Icons.filter_list, color: isDarkMode ? Colors.white : Colors.teal),
-            onPressed: () => _showSortFilterBottomSheet(context, viewModel),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.access_time, color: isDarkMode ? Colors.white : Colors.teal),
+                  const SizedBox(width: 8),
+                  Text(
+                    '지금 영업 중만 보기',
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black, fontSize: 16),
+                  ),
+                ],
+              ),
+              Switch(
+                value: viewModel.showOpenNowOnly,
+                onChanged: (value) => viewModel.toggleOpenNowOnly(),
+                activeColor: Colors.teal,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+
 
   Widget _buildStoreList(MaskStoreViewModel viewModel, bool isDarkMode) {
     return ListView.builder(

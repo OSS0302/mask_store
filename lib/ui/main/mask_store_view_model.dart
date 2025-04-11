@@ -54,6 +54,27 @@ class MaskStoreViewModel extends ChangeNotifier {
   String _searchQuery = ''; // 검색어 상태 관리
   List<MaskStore> _allStores = []; // 모든 약국 데이터를 저장하는 리스트
 
+  bool showOpenNowOnly = false;
+
+  void _filterAndSortStores() {
+    List<MaskStore> filteredStores = List.from(_allStores);
+
+    if (_searchQuery.isNotEmpty) {
+      filteredStores = filteredStores.where((store) {
+        return store.storeName.toLowerCase().contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+
+    if (showOpenNowOnly) {
+      final now = DateTime.now();
+      filteredStores = filteredStores.where((store) {
+        return store.openAt.isBefore(now) && store.closeAt.isAfter(now);
+      }).toList();
+    }
+
+    _state = _state.copyWith(stores: filteredStores);
+  }
+
   Future<void> refreshStores() async {
     await fetchStores();
   }
@@ -211,5 +232,19 @@ class MaskStoreViewModel extends ChangeNotifier {
   void clearPlentyAlert() {
     _plentyAlertStore = null;
   }
+
+  void filterStores(String query) {
+    _searchQuery = query;
+    _filterAndSortStores();
+    notifyListeners();
+  }
+
+  void toggleOpenNowOnly() {
+    showOpenNowOnly = !showOpenNowOnly;
+    _filterAndSortStores();
+    notifyListeners();
+  }
+
+
 
 }
