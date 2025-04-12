@@ -233,11 +233,7 @@ class MaskStoreViewModel extends ChangeNotifier {
     _plentyAlertStore = null;
   }
 
-  void filterStores(String query) {
-    _searchQuery = query;
-    _filterAndSortStores();
-    notifyListeners();
-  }
+
 
   void toggleOpenNowOnly() {
     showOpenNowOnly = !showOpenNowOnly;

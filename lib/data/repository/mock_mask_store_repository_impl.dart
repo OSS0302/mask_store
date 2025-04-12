@@ -47,7 +47,7 @@ class MockMaskStoreRepository implements MaskStoreRepository {
         distance: 0,
         remainStatus: e['remain_stat'] as String ,
         latitude: e['lat'] as double,
-        longitude: e['lng'] as double,
+        longitude: e['lng'] as double, openAt: DateTime.now(), closeAt: DateTime.now(),
       ),
     ).toList();
   }

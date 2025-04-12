@@ -7,6 +7,8 @@ class MaskStore {
   final double longitude;
   bool isFavorite;
   String previousRemainStatus;
+  DateTime openAt;
+  DateTime closeAt;
 
   MaskStore({
     required this.storeName,
@@ -17,11 +19,25 @@ class MaskStore {
     required this.longitude,
     this.isFavorite = false,
     this.previousRemainStatus = '',
+    required this.openAt,
+    required this.closeAt,
   });
 
-  // 즐겨찾기 상태를 토글하는 메서드
+  // 예: JSON에서 받아올 때
+  factory MaskStore.fromJson(Map<String, dynamic> json) {
+    return MaskStore(
+      storeName: json['storeName'],
+      latitude: json['latitude'],
+      longitude: json['longitude'],
+      distance: 0.0, // 초기값
+      remainStatus: json['remainStatus'],
+      openAt: DateTime.parse(json['openAt']),
+      closeAt: DateTime.parse(json['closeAt']), address: '',
+    );
+  }
+
   void toggleFavorite() {
     isFavorite = !isFavorite;
   }
-
 }
+
