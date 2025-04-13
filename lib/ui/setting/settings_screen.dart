@@ -38,13 +38,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            // 다크 모드 설정
             _buildDarkModeSetting(context, maskStoreViewModel, isDarkMode),
-
-            // 알림 설정
             _buildNotificationSetting(context, maskStoreViewModel, isDarkMode),
 
-            // 테마 색상 설정
+            _buildThemePreviewCard(context, maskStoreViewModel, isDarkMode),
+
             _buildSettingCard(
               context,
               title: '테마 색상',
@@ -53,8 +51,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: maskStoreViewModel.currentThemeColorName,
               onTap: () => _showThemeColorDialog(context, maskStoreViewModel),
             ),
-
-            // 폰트 크기 설정
             _buildSettingCard(
               context,
               title: '폰트 크기',
@@ -63,8 +59,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: '현재 크기: ${maskStoreViewModel.fontSize}',
               onTap: () => _showFontSizeDialog(context, maskStoreViewModel),
             ),
-
-            // 캐시 데이터 초기화
             _buildSettingCard(
               context,
               title: '캐시 초기화',
@@ -72,8 +66,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               isDarkMode: isDarkMode,
               onTap: () => _clearCache(context),
             ),
-
-            // 앱 정보
+            _buildSettingCard(
+              context,
+              title: '피드백 보내기',
+              icon: Icons.feedback,
+              isDarkMode: isDarkMode,
+              onTap: () => _sendFeedback(context),
+            ),
+            _buildSettingCard(
+              context,
+              title: '오픈소스 라이브러리',
+              icon: Icons.library_books,
+              isDarkMode: isDarkMode,
+              onTap: () => _showOpenSourceLicenses(context),
+            ),
             _buildSettingCard(
               context,
               title: '앱 정보',
@@ -149,7 +155,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 캐시 초기화
+  Widget _buildThemePreviewCard(BuildContext context, MaskStoreViewModel viewModel, bool isDarkMode) {
+    return Card(
+      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: Icon(Icons.color_lens, color: viewModel.currentThemeColor),
+        title: Text(
+          '현재 테마 미리보기',
+          style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black),
+        ),
+        subtitle: Text(
+          '테마 색상: ${viewModel.currentThemeColorName}\n다크 모드: ${viewModel.isDarkMode ? 'ON' : 'OFF'}',
+          style: TextStyle(color: isDarkMode ? Colors.grey : Colors.black45),
+        ),
+      ),
+    );
+  }
+
   void _clearCache(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     showDialog(
@@ -176,7 +200,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 테마 색상 선택
   void _showThemeColorDialog(BuildContext context, MaskStoreViewModel viewModel) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final colors = {'Teal': Colors.teal, 'Blue': Colors.blue, 'Green': Colors.green};
@@ -205,7 +228,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 폰트 크기 설정
   void _showFontSizeDialog(BuildContext context, MaskStoreViewModel viewModel) {
     showDialog(
       context: context,
@@ -234,7 +256,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 앱 정보
   void _showAppInfo(BuildContext context, bool isDarkMode) {
     showDialog(
       context: context,
@@ -250,6 +271,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _sendFeedback(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const AlertDialog(
+          title: Text('피드백 보내기'),
+          content: Text('maskstoreteam@example.com으로 메일을 보내주세요 :)'),
+        );
+      },
+    );
+  }
+
+  void _showOpenSourceLicenses(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: '마스크 스토어 앱',
+      applicationVersion: '1.0.0',
+      applicationLegalese: '© 2025 Mask Store Team',
     );
   }
 
