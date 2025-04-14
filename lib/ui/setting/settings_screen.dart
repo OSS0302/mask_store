@@ -329,4 +329,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
-2
