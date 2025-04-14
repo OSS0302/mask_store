@@ -18,10 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '설정',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('설정', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: isDarkMode ? Colors.black : Colors.teal,
         elevation: 0,
       ),
@@ -40,9 +37,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             _buildDarkModeSetting(context, maskStoreViewModel, isDarkMode),
             _buildNotificationSetting(context, maskStoreViewModel, isDarkMode),
-
-            _buildThemePreviewCard(context, maskStoreViewModel, isDarkMode),
-
             _buildSettingCard(
               context,
               title: '테마 색상',
@@ -61,24 +55,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             _buildSettingCard(
               context,
+              title: '앱 언어 설정',
+              icon: Icons.language,
+              isDarkMode: isDarkMode,
+              subtitle: maskStoreViewModel.currentLanguage,
+              onTap: () => _showLanguageDialog(context, maskStoreViewModel),
+            ),
+            _buildSettingCard(
+              context,
+              title: '초기 화면 설정',
+              icon: Icons.home,
+              isDarkMode: isDarkMode,
+              subtitle: maskStoreViewModel.initialScreenName,
+              onTap: () => _showInitialScreenDialog(context, maskStoreViewModel),
+            ),
+            _buildSettingCard(
+              context,
+              title: '이용 가이드',
+              icon: Icons.help_outline,
+              isDarkMode: isDarkMode,
+              onTap: () => _showGuideDialog(context, isDarkMode),
+            ),
+            _buildSettingCard(
+              context,
               title: '캐시 초기화',
               icon: Icons.delete_forever,
               isDarkMode: isDarkMode,
               onTap: () => _clearCache(context),
-            ),
-            _buildSettingCard(
-              context,
-              title: '피드백 보내기',
-              icon: Icons.feedback,
-              isDarkMode: isDarkMode,
-              onTap: () => _sendFeedback(context),
-            ),
-            _buildSettingCard(
-              context,
-              title: '오픈소스 라이브러리',
-              icon: Icons.library_books,
-              isDarkMode: isDarkMode,
-              onTap: () => _showOpenSourceLicenses(context),
             ),
             _buildSettingCard(
               context,
@@ -99,25 +102,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       elevation: 4,
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: ListTile(
-        leading: Icon(
-          isDarkMode ? Icons.dark_mode : Icons.light_mode,
-          color: isDarkMode ? Colors.white : Colors.teal,
-        ),
-        title: Text(
-          '다크 모드',
-          style: TextStyle(
-            fontSize: 18,
-            color: isDarkMode ? Colors.white : Colors.black,
-          ),
-        ),
+        leading: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode, color: isDarkMode ? Colors.white : Colors.teal),
+        title: Text('다크 모드', style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black)),
         trailing: Switch(
           value: viewModel.isDarkMode,
           onChanged: (value) {
             viewModel.toggleDarkMode();
-            final darkMessage = viewModel.isDarkMode
-                ? '다크 모드가 활성화되었습니다'
-                : '다크 모드가 비활성화되었습니다';
-            _showCustomSnackBar(context, darkMessage, isDarkMode);
+            final message = value ? '다크 모드가 활성화되었습니다' : '다크 모드가 비활성화되었습니다';
+            _showCustomSnackBar(context, message, isDarkMode);
           },
         ),
       ),
@@ -130,73 +122,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       elevation: 4,
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: ListTile(
-        leading: Icon(
-          Icons.notifications,
-          color: isDarkMode ? Colors.white : Colors.teal,
-        ),
-        title: Text(
-          '알림 설정',
-          style: TextStyle(
-            fontSize: 18,
-            color: isDarkMode ? Colors.white : Colors.black,
-          ),
-        ),
+        leading: Icon(Icons.notifications, color: isDarkMode ? Colors.white : Colors.teal),
+        title: Text('알림 설정', style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black)),
         trailing: Switch(
           value: viewModel.isNotificationsEnabled,
           onChanged: (value) {
             viewModel.toggleNotifications();
-            final alarmMessage = viewModel.isNotificationsEnabled
-                ? '알림이 활성화되었습니다'
-                : '알림이 비활성화되었습니다';
-            _showCustomSnackBar(context, alarmMessage, isDarkMode);
+            final message = value ? '알림이 활성화되었습니다' : '알림이 비활성화되었습니다';
+            _showCustomSnackBar(context, message, isDarkMode);
           },
         ),
       ),
-    );
-  }
-
-  Widget _buildThemePreviewCard(BuildContext context, MaskStoreViewModel viewModel, bool isDarkMode) {
-    return Card(
-      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        leading: Icon(Icons.color_lens, color: viewModel.currentThemeColor),
-        title: Text(
-          '현재 테마 미리보기',
-          style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black),
-        ),
-        subtitle: Text(
-          '테마 색상: ${viewModel.currentThemeColorName}\n다크 모드: ${viewModel.isDarkMode ? 'ON' : 'OFF'}',
-          style: TextStyle(color: isDarkMode ? Colors.grey : Colors.black45),
-        ),
-      ),
-    );
-  }
-
-  void _clearCache(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('캐시 초기화'),
-          content: const Text('캐시 데이터를 삭제하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _showCustomSnackBar(context, '캐시 데이터가 초기화되었습니다', isDarkMode);
-              },
-              child: const Text('확인'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -246,9 +182,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context, MaskStoreViewModel viewModel) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final languages = ['한국어', 'English'];
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('앱 언어 선택'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: languages.map((lang) {
+              return RadioListTile<String>(
+                title: Text(lang, style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+                value: lang,
+                groupValue: viewModel.currentLanguage,
+                onChanged: (value) {
+                  viewModel.changeLanguage(value!);
+                  Navigator.pop(context);
+                  _showCustomSnackBar(context, '$value로 언어가 설정되었습니다', isDarkMode);
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showInitialScreenDialog(BuildContext context, MaskStoreViewModel viewModel) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final screens = ['즐겨찾기', '지도', '설정'];
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('초기 화면 설정'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: screens.map((screen) {
+              return RadioListTile<String>(
+                title: Text(screen, style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+                value: screen,
+                groupValue: viewModel.initialScreenName,
+                onChanged: (value) {
+                  viewModel.changeInitialScreen(value!);
+                  Navigator.pop(context);
+                  _showCustomSnackBar(context, '$value 화면으로 설정되었습니다', isDarkMode);
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showGuideDialog(BuildContext context, bool isDarkMode) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('앱 이용 가이드'),
+          content: const Text(
+              '마스크 스토어 앱은 주변 약국의 마스크 재고를 확인하고 즐겨찾기할 수 있는 앱입니다.\n\n'
+                  '설정에서 테마, 폰트, 초기 화면 등을 자유롭게 설정해보세요!'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
+          ],
+        );
+      },
+    );
+  }
+
+  void _clearCache(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('캐시 초기화'),
+          content: const Text('캐시 데이터를 삭제하시겠습니까?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('닫기'),
+              onPressed: () {
+                Navigator.pop(context);
+                _showCustomSnackBar(context, '캐시 데이터가 초기화되었습니다', isDarkMode);
+              },
+              child: const Text('확인'),
             ),
           ],
         );
@@ -264,34 +293,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: const Text('앱 정보'),
           content: const Text('마스크 스토어 앱\n버전: 1.0.0\n개발자: Mask Store Team'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('닫기'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
           ],
         );
       },
-    );
-  }
-
-  void _sendFeedback(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return const AlertDialog(
-          title: Text('피드백 보내기'),
-          content: Text('maskstoreteam@example.com으로 메일을 보내주세요 :)'),
-        );
-      },
-    );
-  }
-
-  void _showOpenSourceLicenses(BuildContext context) {
-    showAboutDialog(
-      context: context,
-      applicationName: '마스크 스토어 앱',
-      applicationVersion: '1.0.0',
-      applicationLegalese: '© 2025 Mask Store Team',
     );
   }
 
@@ -315,10 +320,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: ListTile(
         leading: Icon(icon, color: isDarkMode ? Colors.white : Colors.teal),
-        title: Text(
-          title,
-          style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black),
-        ),
+        title: Text(title, style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black)),
         subtitle: subtitle != null
             ? Text(subtitle, style: TextStyle(color: isDarkMode ? Colors.grey : Colors.black45))
             : null,
@@ -327,3 +329,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+2
