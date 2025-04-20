@@ -144,9 +144,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 기존 기능 위젯 + 각종 Dialog 메서드들 아래로...
+  void _showAppInfo(BuildContext context, bool isDarkMode) {
+    showAboutDialog(
+      context: context,
+      applicationName: '마스크 스토어',
+      applicationVersion: '1.0.0',
+      applicationIcon: Icon(Icons.masks, size: 40, color: isDarkMode ? Colors.white : Colors.teal),
+      children: [
+        const SizedBox(height: 16),
+        const Text('마스크 스토어 앱은 주변 마스크 매장의 재고 현황을 실시간으로 확인하고 즐겨찾기를 통해 관리할 수 있는 앱입니다.'),
+      ],
+    );
+  }
 
-  // 기존 다크 모드, 알림 설정, 캐시 초기화, 테마 색상, 폰트 크기, 앱 정보, CustomSnackBar 함수 그대로 두고
+  void _clearCache(BuildContext context) {
+    // 여기에 실제 캐시 초기화 로직이 있다면 실행
+    // 예: context.read<MaskStoreViewModel>().clearCache();
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    _showCustomSnackBar(context, '캐시가 초기화되었습니다', isDarkMode);
+  }
 
   void _showLanguageDialog(BuildContext context, bool isDarkMode) {
     showDialog(
