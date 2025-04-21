@@ -9,6 +9,15 @@ class MaskStoreViewModel extends ChangeNotifier {
   final MyLocationRepository _myLocationRepository;
   final ScrollController scrollController = ScrollController();
 
+  // ✅ 초기 화면 설정 상태
+  String _initialScreen = '홈'; // 기본값 '홈'
+  String get initialScreen => _initialScreen;
+
+  void changeInitialScreen(String screen) {
+    _initialScreen = screen;
+    notifyListeners();
+  }
+
   // 다크 모드 상태
   bool _isDarkMode = false;
   bool get isDarkMode => _isDarkMode;
@@ -30,8 +39,7 @@ class MaskStoreViewModel extends ChangeNotifier {
   double get fontSize => _fontSize;
 
   // 장바구니
-  final List<String> _cartItems = []; // 장바구니 아이템 목록
-
+  final List<String> _cartItems = [];
   List<String> get cartItems => List.unmodifiable(_cartItems);
 
   MaskStoreViewModel({
@@ -39,7 +47,7 @@ class MaskStoreViewModel extends ChangeNotifier {
     required MyLocationRepository myLocationRepository,
   })  : _maskStoreRepository = maskStoreRepository,
         _myLocationRepository = myLocationRepository {
-    fetchStores(); // 초기 데이터 로드
+    fetchStores();
   }
 
   MaskStoreState _state = MaskStoreState(
@@ -47,12 +55,10 @@ class MaskStoreViewModel extends ChangeNotifier {
     stores: List.unmodifiable([]),
   );
 
-
-
   MaskStoreState get state => _state;
 
-  String _searchQuery = ''; // 검색어 상태 관리
-  List<MaskStore> _allStores = []; // 모든 약국 데이터를 저장하는 리스트
+  String _searchQuery = '';
+  List<MaskStore> _allStores = [];
 
   bool showOpenNowOnly = false;
 
@@ -88,7 +94,6 @@ class MaskStoreViewModel extends ChangeNotifier {
       if (existing.isFavorite &&
           existing.remainStatus != 'plenty' &&
           newStore.remainStatus == 'plenty') {
-        // 재고 상태가 plenty로 바뀐 즐겨찾기 약국 -> 알림!
         _notifyPlentyStatus(newStore);
       }
 
@@ -100,10 +105,8 @@ class MaskStoreViewModel extends ChangeNotifier {
   }
 
   void _notifyPlentyStatus(MaskStore store) {
-    // 여기에 콜백이나 상태 업데이트 후 Snackbar 표시하도록 설정
     _plentyAlertStore = store;
   }
-
 
   Future<void> fetchStores() async {
     _state = state.copyWith(isLoading: true);
@@ -122,25 +125,23 @@ class MaskStoreViewModel extends ChangeNotifier {
     }
 
     stores.sort((store, my) => store.distance.compareTo(my.distance));
-    _allStores = stores; // 모든 데이터를 저장
+    _allStores = stores;
     _state = state.copyWith(
       isLoading: false,
-      stores: _filterStores(_searchQuery), // 필터링된 리스트 적용
+      stores: _filterStores(_searchQuery),
     );
     notifyListeners();
   }
 
-  // 검색어로 리스트 필터링
   void filterStores(String query) {
     _searchQuery = query;
     _state = state.copyWith(stores: _filterStores(query));
     notifyListeners();
   }
 
-  // 검색어에 따라 약국 리스트 필터링하는 함수
   List<MaskStore> _filterStores(String query) {
     if (query.isEmpty) {
-      return _allStores; // 검색어가 없으면 모든 데이터를 반환
+      return _allStores;
     }
 
     return _allStores.where((store) {
@@ -148,58 +149,47 @@ class MaskStoreViewModel extends ChangeNotifier {
     }).toList();
   }
 
-  // 다크 모드 토글
   void toggleDarkMode() {
     _isDarkMode = !_isDarkMode;
     notifyListeners();
   }
 
-
-
-  // 알림 설정 토글
   void toggleNotifications() {
     _isNotificationsEnabled = !_isNotificationsEnabled;
     notifyListeners();
   }
 
-  // 언어 변경
   void changeLanguage(String language) {
     _currentLanguage = language;
     notifyListeners();
   }
 
-  // 테마 색상 변경
-  MaterialColor _currentThemeColor = Colors.blue; // 기본 색상
+  MaterialColor _currentThemeColor = Colors.blue;
   MaterialColor get currentThemeColor => _currentThemeColor;
 
-// 테마 색상 변경 메서드
   void changeThemeColor(MaterialColor color) {
     _currentThemeColor = color;
     notifyListeners();
   }
 
-  // 폰트 크기 변경
   void changeFontSize(double newSize) {
     _fontSize = newSize;
     notifyListeners();
   }
 
-  // 즐겨찾기 토글 메서드
   void toggleFavorite(MaskStore store) {
     store.toggleFavorite();
-    notifyListeners(); // UI에 변경 사항 반영
+    notifyListeners();
   }
 
-  // 즐겨찾기 초기화
   void clearFavorites() {
     for (var store in _allStores) {
-      store.isFavorite = false; // 모든 즐겨찾기 해제
+      store.isFavorite = false;
     }
     _state = state.copyWith(stores: List.from(_allStores));
-    notifyListeners(); // 상태 변경 알림
+    notifyListeners();
   }
 
-  // 거리순 정렬
   void sortByDistance() {
     _state = state.copyWith(
       stores: List.from(_state.stores)..sort((a, b) => a.distance.compareTo(b.distance)),
@@ -207,7 +197,6 @@ class MaskStoreViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 재고순 정렬
   void sortByStock() {
     _state = state.copyWith(
       stores: List.from(_state.stores)..sort((a, b) => b.remainStatus.compareTo(a.remainStatus)),
@@ -215,15 +204,14 @@ class MaskStoreViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 장바구니
   void addToCart(String item) {
     _cartItems.add(item);
-    notifyListeners(); // 상태 변경 알림
+    notifyListeners();
   }
 
   void removeFromCart(String item) {
     _cartItems.remove(item);
-    notifyListeners(); // 상태 변경 알림
+    notifyListeners();
   }
 
   MaskStore? _plentyAlertStore;
@@ -233,14 +221,9 @@ class MaskStoreViewModel extends ChangeNotifier {
     _plentyAlertStore = null;
   }
 
-
-
   void toggleOpenNowOnly() {
     showOpenNowOnly = !showOpenNowOnly;
     _filterAndSortStores();
     notifyListeners();
   }
-
-
-
 }
