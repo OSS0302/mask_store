@@ -4,8 +4,37 @@ import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
 import '../component/store_item.dart';
 
-class MaskStoreScreen extends StatelessWidget {
+class MaskStoreScreen extends StatefulWidget {
   const MaskStoreScreen({super.key});
+
+  @override
+  State<MaskStoreScreen> createState() => _MaskStoreScreenState();
+}
+
+class _MaskStoreScreenState extends State<MaskStoreScreen> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final viewModel = context.read<MaskStoreViewModel>();
+    final alertStore = viewModel.plentyAlertStore;
+
+    if (alertStore != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '🎉 ${alertStore.storeName} 약국에 마스크 재고가 plenty로 변경됐습니다!',
+              style: const TextStyle(fontSize: 16),
+            ),
+            backgroundColor: Colors.teal,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        viewModel.clearPlentyAlert();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +164,6 @@ class MaskStoreScreen extends StatelessWidget {
       ],
     );
   }
-
 
   Widget _buildStoreList(MaskStoreViewModel viewModel, bool isDarkMode) {
     return ListView.builder(
