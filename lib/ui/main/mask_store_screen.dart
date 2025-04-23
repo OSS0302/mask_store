@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+
 import '../component/store_item.dart';
 
 class MaskStoreScreen extends StatefulWidget {
@@ -12,40 +14,33 @@ class MaskStoreScreen extends StatefulWidget {
 }
 
 class _MaskStoreScreenState extends State<MaskStoreScreen> {
+  final FlutterTts _tts = FlutterTts();
+  bool _fabExpanded = false;
+
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void dispose() {
+    _tts.stop();
+    super.dispose();
+  }
 
-    final viewModel = context.read<MaskStoreViewModel>();
-    final alertStore = viewModel.plentyAlertStore;
-
-    if (alertStore != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '🎉 ${alertStore.storeName} 약국에 마스크 재고가 plenty로 변경됐습니다!',
-              style: const TextStyle(fontSize: 16),
-            ),
-            backgroundColor: Colors.teal,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        viewModel.clearPlentyAlert();
-      });
-    }
+  Future<void> _speakStoreCount(int count) async {
+    await _tts.setLanguage("ko-KR");
+    await _tts.setPitch(1.0);
+    await _tts.setSpeechRate(0.5);
+    await _tts.speak("현재 ${count}개의 약국이 검색되었습니다.");
   }
 
   @override
   Widget build(BuildContext context) {
-    final maskStoreViewModel = context.watch<MaskStoreViewModel>();
-    final isDarkMode = maskStoreViewModel.isDarkMode;
+    final viewModel = context.watch<MaskStoreViewModel>();
+    final isDarkMode = viewModel.isDarkMode;
+    final storeCount = viewModel.state.stores.length;
 
     return Scaffold(
       appBar: AppBar(
         elevation: 4,
         title: Text(
-          '마스크 재고 약국 (${maskStoreViewModel.state.stores.length}곳)',
+          '마스크 재고 약국 ($storeCount곳)',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -71,17 +66,17 @@ class _MaskStoreScreenState extends State<MaskStoreScreen> {
       body: Stack(
         children: [
           RefreshIndicator(
-            onRefresh: maskStoreViewModel.refreshStores,
+            onRefresh: viewModel.refreshStores,
             child: Column(
               children: [
-                _buildSearchAndFilter(context, maskStoreViewModel),
+                _buildSearchAndFilter(context, viewModel),
                 const Divider(height: 1, thickness: 1, color: Colors.teal),
                 Expanded(
-                  child: maskStoreViewModel.state.isLoading
+                  child: viewModel.state.isLoading
                       ? _buildLoadingIndicator(isDarkMode)
-                      : maskStoreViewModel.state.stores.isEmpty
+                      : viewModel.state.stores.isEmpty
                       ? _buildNoResults(isDarkMode)
-                      : _buildStoreList(maskStoreViewModel, isDarkMode),
+                      : _buildStoreList(viewModel, isDarkMode),
                 ),
               ],
             ),
@@ -89,20 +84,69 @@ class _MaskStoreScreenState extends State<MaskStoreScreen> {
           Positioned(
             bottom: 20,
             right: 20,
-            child: FloatingActionButton(
-              onPressed: () {
-                maskStoreViewModel.scrollController.animateTo(
-                  0.0,
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOut,
-                );
-              },
-              backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal,
-              child: Icon(Icons.arrow_upward, color: isDarkMode ? Colors.white : Colors.black),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (_fabExpanded) ...[
+                  _fabMiniButton(
+                    icon: Icons.refresh,
+                    label: "새로고침",
+                    onPressed: () => viewModel.refreshStores(),
+                  ),
+                  const SizedBox(height: 10),
+                  _fabMiniButton(
+                    icon: Icons.arrow_upward,
+                    label: "맨 위로",
+                    onPressed: () {
+                      viewModel.scrollController.animateTo(
+                        0.0,
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOut,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _fabMiniButton(
+                    icon: Icons.volume_up,
+                    label: "음성 안내",
+                    onPressed: () => _speakStoreCount(storeCount),
+                  ),
+                  const SizedBox(height: 10),
+                  _fabMiniButton(
+                    icon: Icons.map,
+                    label: "지도 보기",
+                    onPressed: () => context.push("/mapViewScreen"),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                FloatingActionButton(
+                  onPressed: () {
+                    setState(() {
+                      _fabExpanded = !_fabExpanded;
+                    });
+                  },
+                  backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal,
+                  child: Icon(_fabExpanded ? Icons.close : Icons.menu),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _fabMiniButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return FloatingActionButton.extended(
+      heroTag: label,
+      icon: Icon(icon),
+      label: Text(label),
+      onPressed: onPressed,
+      backgroundColor: Colors.teal,
     );
   }
 
@@ -175,9 +219,7 @@ class _MaskStoreScreenState extends State<MaskStoreScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Card(
             color: isDarkMode ? Colors.grey.shade900 : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             elevation: 12,
             shadowColor: Colors.black.withOpacity(0.4),
             child: StoreItem(maskStore: store),
