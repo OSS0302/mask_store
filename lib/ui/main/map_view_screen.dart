@@ -1,11 +1,9 @@
-import 'dart:async';
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
+import 'dart:math';
 
 class MapScreen extends StatefulWidget {
   @override
@@ -19,26 +17,21 @@ class _MapScreenState extends State<MapScreen> {
   final Completer<GoogleMapController> _controller = Completer();
   MapType _currentMapType = MapType.normal;
   StreamSubscription<Position>? _positionStream;
-  final List<Map<String, dynamic>> _pharmacies = [];
-  final List<Map<String, dynamic>> _favoritePharmacies = [];
+  List<Map<String, dynamic>> _pharmacies = [];
   String _searchQuery = "";
-  bool _showOnlyFavorites = false;
-  bool _showOnlyStockAvailable = false;
-  FlutterTts _flutterTts = FlutterTts();
-  int? _nearestPharmacyIndex;
+  String _stockFilter = '전체'; // '전체', '재고 있음', '재고 부족'
+  String _sortOption = '가까운 순'; // '가까운 순', '이름순'
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
     _startLocationUpdates();
-    _generatePharmacyMarkers();
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
-    _flutterTts.stop();
     super.dispose();
   }
 
@@ -49,10 +42,21 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
         _updateCurrentLocationMarker();
-        _highlightNearestPharmacy();
       });
       _mapController?.animateCamera(CameraUpdate.newLatLng(_currentPosition));
     });
+  }
+
+  void _updateCurrentLocationMarker() {
+    _markers.removeWhere((marker) => marker.markerId.value == 'current_location');
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('current_location'),
+        position: _currentPosition,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(title: '내 위치'),
+      ),
+    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -66,74 +70,9 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _currentPosition = LatLng(position.latitude, position.longitude);
       _updateCurrentLocationMarker();
+      _generatePharmacyMarkers();
     });
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(_currentPosition, 14),
-    );
-    _highlightNearestPharmacy();
-  }
-
-  void _updateCurrentLocationMarker() {
-    _markers.removeWhere((marker) => marker.markerId.value == 'current_location');
-    _markers.add(
-      Marker(
-        markerId: MarkerId('current_location'),
-        position: _currentPosition,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        infoWindow: InfoWindow(title: '내 위치'),
-      ),
-    );
-  }
-
-  void _generatePharmacyMarkers() {
-    Random random = Random();
-    for (int i = 0; i < 8; i++) {
-      double latOffset = (random.nextDouble() - 0.5) / 300;
-      double lngOffset = (random.nextDouble() - 0.5) / 300;
-      LatLng pharmacyLocation = LatLng(_currentPosition.latitude + latOffset, _currentPosition.longitude + lngOffset);
-
-      Map<String, dynamic> pharmacy = {
-        'id': 'pharmacy_$i',
-        'name': '약국 ${i + 1}',
-        'location': pharmacyLocation,
-        'stock': random.nextBool() ? '마스크 재고 있음' : '재고 부족',
-        'favorite': false,
-      };
-
-      _pharmacies.add(pharmacy);
-    }
-    _refreshMarkers();
-  }
-
-  void _refreshMarkers() {
-    _markers.removeWhere((marker) => marker.markerId.value != 'current_location');
-
-    for (var pharmacy in _pharmacies) {
-      if (_showOnlyFavorites && pharmacy['favorite'] != true) continue;
-      if (_showOnlyStockAvailable && pharmacy['stock'] != '마스크 재고 있음') continue;
-
-      _markers.add(
-        Marker(
-          markerId: MarkerId(pharmacy['id']),
-          position: pharmacy['location'],
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              pharmacy['favorite'] ? BitmapDescriptor.hueYellow : BitmapDescriptor.hueRed),
-          infoWindow: InfoWindow(
-            title: pharmacy['name'],
-            snippet: pharmacy['stock'],
-            onTap: () => _launchMaps(pharmacy['location']),
-          ),
-        ),
-      );
-    }
-    setState(() {});
-  }
-
-  void _toggleFavorite(Map<String, dynamic> pharmacy) {
-    setState(() {
-      pharmacy['favorite'] = !(pharmacy['favorite'] ?? false);
-    });
-    _refreshMarkers();
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_currentPosition, 14));
   }
 
   void _toggleMapType() {
@@ -142,45 +81,78 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  void _generatePharmacyMarkers() {
+    Random random = Random();
+    _pharmacies.clear();
+    _markers.removeWhere((marker) => marker.markerId.value.startsWith('pharmacy_'));
+
+    for (int i = 0; i < 10; i++) {
+      double latOffset = (random.nextDouble() - 0.5) / 500;
+      double lngOffset = (random.nextDouble() - 0.5) / 500;
+      LatLng pharmacyLocation = LatLng(_currentPosition.latitude + latOffset, _currentPosition.longitude + lngOffset);
+
+      String stock = random.nextBool() ? '재고 있음' : '재고 부족';
+
+      Map<String, dynamic> pharmacy = {
+        'id': i,
+        'name': '약국 ${i + 1}',
+        'location': pharmacyLocation,
+        'stock': stock,
+      };
+
+      _pharmacies.add(pharmacy);
+
+      _markers.add(
+        Marker(
+          markerId: MarkerId('pharmacy_$i'),
+          position: pharmacyLocation,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: InfoWindow(
+            title: pharmacy['name'],
+            snippet: pharmacy['stock'],
+            onTap: () => _launchMaps(pharmacyLocation),
+          ),
+        ),
+      );
+    }
+  }
+
   void _launchMaps(LatLng destination) async {
     String url = "https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}";
-    if (await canLaunch(url)) {
-      await launch(url);
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
     }
   }
 
-  Future<void> _highlightNearestPharmacy() async {
-    if (_pharmacies.isEmpty) return;
-    double minDistance = double.infinity;
-    int nearestIndex = 0;
-
-    for (int i = 0; i < _pharmacies.length; i++) {
-      double distance = Geolocator.distanceBetween(
-        _currentPosition.latitude,
-        _currentPosition.longitude,
-        _pharmacies[i]['location'].latitude,
-        _pharmacies[i]['location'].longitude,
-      );
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestIndex = i;
-      }
+  void _sortPharmacies() {
+    if (_sortOption == '가까운 순') {
+      _pharmacies.sort((a, b) {
+        double distanceA = Geolocator.distanceBetween(
+          _currentPosition.latitude,
+          _currentPosition.longitude,
+          a['location'].latitude,
+          a['location'].longitude,
+        );
+        double distanceB = Geolocator.distanceBetween(
+          _currentPosition.latitude,
+          _currentPosition.longitude,
+          b['location'].latitude,
+          b['location'].longitude,
+        );
+        return distanceA.compareTo(distanceB);
+      });
+    } else if (_sortOption == '이름순') {
+      _pharmacies.sort((a, b) => a['name'].compareTo(b['name']));
     }
-
-    setState(() {
-      _nearestPharmacyIndex = nearestIndex;
-    });
-
-    await _flutterTts.speak("${_pharmacies[nearestIndex]['name']}이 가장 가까운 약국입니다.");
   }
+
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> displayedPharmacies = _pharmacies
-        .where((p) =>
-    (!_showOnlyFavorites || p['favorite'] == true) &&
-        (!_showOnlyStockAvailable || p['stock'] == '마스크 재고 있음') &&
-        p['name'].contains(_searchQuery))
-        .toList();
+    _sortPharmacies();
+    final filteredPharmacies = _pharmacies.where((p) {
+      if (_stockFilter == '전체') return p['name'].contains(_searchQuery);
+      return p['stock'] == _stockFilter && p['name'].contains(_searchQuery);
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -188,29 +160,24 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: Colors.teal,
         actions: [
           IconButton(
-            icon: Icon(Icons.filter_alt),
-            onPressed: () {
-              setState(() {
-                _showOnlyStockAvailable = !_showOnlyStockAvailable;
-              });
-              _refreshMarkers();
-            },
-            tooltip: _showOnlyStockAvailable ? '모든 약국 보기' : '재고 있는 약국만 보기',
+            icon: const Icon(Icons.my_location),
+            onPressed: _getCurrentLocation,
           ),
           IconButton(
-            icon: Icon(Icons.favorite),
-            onPressed: () {
-              setState(() {
-                _showOnlyFavorites = !_showOnlyFavorites;
-              });
-              _refreshMarkers();
-            },
-            tooltip: _showOnlyFavorites ? '모든 약국 보기' : '즐겨찾기만 보기',
-          ),
-          IconButton(
-            icon: Icon(Icons.map),
+            icon: const Icon(Icons.map),
             onPressed: _toggleMapType,
-            tooltip: '지도 타입 변경',
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                _sortOption = value;
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: '가까운 순', child: Text('가까운 순')),
+              const PopupMenuItem(value: '이름순', child: Text('이름순')),
+            ],
+            icon: const Icon(Icons.sort),
           ),
         ],
       ),
@@ -235,9 +202,9 @@ class _MapScreenState extends State<MapScreen> {
               elevation: 5,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: '약국 검색',
                     border: InputBorder.none,
                     icon: Icon(Icons.search),
@@ -250,6 +217,31 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
           Positioned(
+            top: 80,
+            left: 10,
+            right: 10,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ChoiceChip(
+                  label: const Text('전체'),
+                  selected: _stockFilter == '전체',
+                  onSelected: (_) => setState(() => _stockFilter = '전체'),
+                ),
+                ChoiceChip(
+                  label: const Text('재고 있음'),
+                  selected: _stockFilter == '재고 있음',
+                  onSelected: (_) => setState(() => _stockFilter = '재고 있음'),
+                ),
+                ChoiceChip(
+                  label: const Text('재고 부족'),
+                  selected: _stockFilter == '재고 부족',
+                  onSelected: (_) => setState(() => _stockFilter = '재고 부족'),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
             bottom: 10,
             left: 10,
             right: 10,
@@ -257,9 +249,12 @@ class _MapScreenState extends State<MapScreen> {
               height: 160,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: displayedPharmacies.length,
+                itemCount: filteredPharmacies.length,
                 itemBuilder: (context, index) {
-                  final pharmacy = displayedPharmacies[index];
+                  final pharmacy = filteredPharmacies[index];
+                  final stockBadgeColor = pharmacy['stock'] == '재고 있음' ? Colors.green : Colors.red;
+                  final stockBadgeText = pharmacy['stock'] == '재고 있음' ? '🟢 재고 있음' : '🔴 재고 부족';
+
                   return GestureDetector(
                     onTap: () {
                       _mapController?.animateCamera(
@@ -269,43 +264,26 @@ class _MapScreenState extends State<MapScreen> {
                     child: Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      margin: EdgeInsets.symmetric(horizontal: 8),
                       child: Container(
                         width: 220,
-                        padding: EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    pharmacy['name'],
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    pharmacy['favorite'] ? Icons.star : Icons.star_border,
-                                    color: pharmacy['favorite'] ? Colors.yellow[700] : Colors.grey,
-                                  ),
-                                  onPressed: () => _toggleFavorite(pharmacy),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 5),
                             Text(
-                              pharmacy['stock'],
-                              style: TextStyle(color: Colors.grey[600]),
+                              pharmacy['name'],
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
-                            Spacer(),
-                            ElevatedButton(
-                              onPressed: () => _launchMaps(pharmacy['location']),
-                              child: Text('길찾기'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.teal,
-                                minimumSize: Size(double.infinity, 36),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: stockBadgeColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                stockBadgeText,
+                                style: TextStyle(color: stockBadgeColor, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
