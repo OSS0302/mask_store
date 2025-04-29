@@ -1,4 +1,9 @@
+// dependencies 추가 필요
+// pubspec.yaml
+// flutter_tts: ^3.6.3
+
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart'; // TTS 추가
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,7 +25,9 @@ class _MapScreenState extends State<MapScreen> {
   final List<Map<String, dynamic>> _pharmacies = [];
   String _searchQuery = "";
   bool _showFavoritesOnly = false;
-  final Set<String> _favoritePharmacies = {}; // ⭐ 즐겨찾기 저장
+  final Set<String> _favoritePharmacies = {};
+  final FlutterTts _flutterTts = FlutterTts();
+  bool _hasAnnounced = false; // 중복 안내 방지
 
   @override
   void initState() {
@@ -33,6 +40,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _positionStream?.cancel();
+    _flutterTts.stop();
     super.dispose();
   }
 
@@ -43,20 +51,9 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
         _updateCurrentLocationMarker();
+        _checkNearestPharmacyForTTS();
       });
     });
-  }
-
-  void _updateCurrentLocationMarker() {
-    _markers.removeWhere((marker) => marker.markerId.value == 'current_location');
-    _markers.add(
-      Marker(
-        markerId: MarkerId('current_location'),
-        position: _currentPosition,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        infoWindow: InfoWindow(title: '내 위치'),
-      ),
-    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -71,15 +68,22 @@ class _MapScreenState extends State<MapScreen> {
       _currentPosition = LatLng(position.latitude, position.longitude);
       _updateCurrentLocationMarker();
     });
+
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(_currentPosition, 14),
     );
   }
 
-  void _toggleMapType() {
-    setState(() {
-      _currentMapType = _currentMapType == MapType.normal ? MapType.hybrid : MapType.normal;
-    });
+  void _updateCurrentLocationMarker() {
+    _markers.removeWhere((marker) => marker.markerId.value == 'current_location');
+    _markers.add(
+      Marker(
+        markerId: MarkerId('current_location'),
+        position: _currentPosition,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: InfoWindow(title: '내 위치'),
+      ),
+    );
   }
 
   void _generatePharmacyMarkers() {
@@ -114,26 +118,62 @@ class _MapScreenState extends State<MapScreen> {
         infoWindow: InfoWindow(
           title: pharmacy['name'],
           snippet: pharmacy['stock'],
-          onTap: () => _launchMaps(pharmacy['location']),
+          onTap: () => _showPharmacyDetails(pharmacy),
         ),
       ),
     );
   }
 
-  void _launchMaps(LatLng destination) async {
-    String url = "https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}";
+  void _showPharmacyDetails(Map<String, dynamic> pharmacy) {
+    double distance = _calculateDistance(_currentPosition, pharmacy['location']);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(pharmacy['name']),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('재고 상태: ${pharmacy['stock']}'),
+            SizedBox(height: 8),
+            Text('거리: ${_formatDistance(distance)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _launchNaverMaps(pharmacy['location']),
+            child: Text('네이버지도 열기'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchNaverMaps(LatLng destination) async {
+    final url = 'nmap://route/walk?dlat=${destination.latitude}&dlng=${destination.longitude}&appname=com.example.maskstore';
     if (await canLaunch(url)) {
       await launch(url);
+    } else {
+      // fallback: 브라우저로 열기
+      final webUrl = 'https://map.naver.com/v5/directions/-/-/${destination.longitude},${destination.latitude},PLACE';
+      if (await canLaunch(webUrl)) {
+        await launch(webUrl);
+      }
     }
   }
 
+  void _toggleMapType() {
+    setState(() {
+      _currentMapType = _currentMapType == MapType.normal ? MapType.hybrid : MapType.normal;
+    });
+  }
+
   double _calculateDistance(LatLng start, LatLng end) {
-    return Geolocator.distanceBetween(
-      start.latitude,
-      start.longitude,
-      end.latitude,
-      end.longitude,
-    );
+    return Geolocator.distanceBetween(start.latitude, start.longitude, end.latitude, end.longitude);
   }
 
   String _formatDistance(double distanceMeters) {
@@ -152,6 +192,24 @@ class _MapScreenState extends State<MapScreen> {
         _favoritePharmacies.add(pharmacyId);
       }
     });
+  }
+
+  void _checkNearestPharmacyForTTS() async {
+    if (_hasAnnounced) return;
+
+    _pharmacies.sort((a, b) {
+      double distanceA = _calculateDistance(_currentPosition, a['location']);
+      double distanceB = _calculateDistance(_currentPosition, b['location']);
+      return distanceA.compareTo(distanceB);
+    });
+
+    if (_pharmacies.isNotEmpty) {
+      double nearestDistance = _calculateDistance(_currentPosition, _pharmacies.first['location']);
+      if (nearestDistance < 200) {
+        await _flutterTts.speak('${_pharmacies.first['name']}, ${_pharmacies.first['stock']}');
+        _hasAnnounced = true;
+      }
+    }
   }
 
   @override
@@ -241,6 +299,7 @@ class _MapScreenState extends State<MapScreen> {
                       _mapController?.animateCamera(
                         CameraUpdate.newLatLngZoom(pharmacy['location'], 16),
                       );
+                      _showPharmacyDetails(pharmacy);
                     },
                     child: Card(
                       elevation: 4,
