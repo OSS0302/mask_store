@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mask_store/ui/main/mask_store_view_model.dart';
-import 'package:provider/provider.dart';
-import '../setting/settings_screen.dart';
-import 'mask_store_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -16,18 +12,23 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   DateTime? _lastBackPressed;
+  bool _showSettingsBadge = true;
+  bool _isLoading = true;
 
   final List<Widget> _screens = const [
     MaskStoreScreen(),
     SettingsScreen(),
   ];
 
-  bool _showSettingsBadge = true; // 새로운 기능 안내 뱃지
-
   @override
   void initState() {
     super.initState();
-    _loadInitialIndex();
+    _loadInitialIndex().then((_) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        setState(() => _isLoading = false);
+        _showWelcomeMessage();
+      });
+    });
   }
 
   Future<void> _loadInitialIndex() async {
@@ -41,6 +42,19 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _saveTabIndex(int index) async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setInt('main_tab_index', index);
+  }
+
+  void _showWelcomeMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("${_getGreeting()} 😊")),
+    );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return "좋은 아침이에요!";
+    if (hour < 18) return "좋은 하루 되세요!";
+    return "좋은 저녁입니다!";
   }
 
   Future<bool> _onWillPop() async {
@@ -59,10 +73,8 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _currentIndex = index;
       _saveTabIndex(index);
-      if (index == 1) _showSettingsBadge = false; // 설정 탭 진입 시 뱃지 제거
+      if (index == 1) _showSettingsBadge = false;
     });
-
-    // 진동 피드백 (설정 연동 가능)
     HapticFeedback.selectionClick();
   }
 
@@ -70,9 +82,25 @@ class _MainScreenState extends State<MainScreen> {
     if (action == 'guide') {
       Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
     } else if (action == 'share') {
-      // TODO: 앱 공유 기능 추가
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("앱 공유 기능은 준비 중입니다.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("앱 공유 기능은 준비 중입니다.")),
+      );
+    } else if (action == 'version') {
+      showAboutDialog(
+        context: context,
+        applicationName: '마스크 스토어',
+        applicationVersion: 'v1.0.0',
+        applicationIcon: const Icon(Icons.local_pharmacy),
+      );
     }
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text("마스크 스토어 - ${_getGreeting()}"),
+      backgroundColor: Colors.teal,
+      centerTitle: true,
+    );
   }
 
   @override
@@ -82,7 +110,10 @@ class _MainScreenState extends State<MainScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        body: _screens[_currentIndex],
+        appBar: _buildAppBar(),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _screens[_currentIndex],
         floatingActionButton: _buildFab(),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -137,6 +168,11 @@ class _MainScreenState extends State<MainScreen> {
           onPressed: () => _onFabSelected('share'),
           icon: const Icon(Icons.share),
           tooltip: '앱 공유하기',
+        ),
+        ActionButton(
+          onPressed: () => _onFabSelected('version'),
+          icon: const Icon(Icons.info),
+          tooltip: '앱 정보',
         ),
       ],
     );
