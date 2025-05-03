@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../setting/settings_screen.dart';
+import 'mask_store_screen.dart';
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
