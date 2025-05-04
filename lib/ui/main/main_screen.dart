@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../setting/settings_screen.dart';
 import 'mask_store_screen.dart';
+import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -16,22 +18,25 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   DateTime? _lastBackPressed;
   bool _showSettingsBadge = true;
-  bool _isLoading = true;
+  String _userGreeting = '';
+  String _appVersion = '';
 
   final List<Widget> _screens = const [
     MaskStoreScreen(),
     SettingsScreen(),
   ];
 
+  final List<String> _appBarTitles = [
+    '마스크 스토어',
+    '설정',
+  ];
+
   @override
   void initState() {
     super.initState();
-    _loadInitialIndex().then((_) {
-      Future.delayed(const Duration(milliseconds: 800), () {
-        setState(() => _isLoading = false);
-        _showWelcomeMessage();
-      });
-    });
+    _loadInitialIndex();
+    _loadGreeting();
+    _loadAppVersion();
   }
 
   Future<void> _loadInitialIndex() async {
@@ -47,17 +52,26 @@ class _MainScreenState extends State<MainScreen> {
     prefs.setInt('main_tab_index', index);
   }
 
-  void _showWelcomeMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("${_getGreeting()} 😊")),
-    );
+  Future<void> _loadGreeting() async {
+    final hour = DateTime.now().hour;
+    String greeting;
+    if (hour < 12) {
+      greeting = '좋은 아침입니다!';
+    } else if (hour < 18) {
+      greeting = '좋은 오후입니다!';
+    } else {
+      greeting = '좋은 저녁입니다!';
+    }
+    setState(() {
+      _userGreeting = greeting;
+    });
   }
 
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return "좋은 아침이에요!";
-    if (hour < 18) return "좋은 하루 되세요!";
-    return "좋은 저녁입니다!";
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = info.version;
+    });
   }
 
   Future<bool> _onWillPop() async {
@@ -85,38 +99,32 @@ class _MainScreenState extends State<MainScreen> {
     if (action == 'guide') {
       Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
     } else if (action == 'share') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("앱 공유 기능은 준비 중입니다.")),
-      );
-    } else if (action == 'version') {
-      showAboutDialog(
-        context: context,
-        applicationName: '마스크 스토어',
-        applicationVersion: 'v1.0.0',
-        applicationIcon: const Icon(Icons.local_pharmacy),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("앱 공유 기능은 준비 중입니다.")));
     }
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Text("마스크 스토어 - ${_getGreeting()}"),
-      backgroundColor: Colors.teal,
-      centerTitle: true,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final title = _appBarTitles[_currentIndex];
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        appBar: _buildAppBar(),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _screens[_currentIndex],
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title),
+              Text(
+                '$_userGreeting  v$_appVersion',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.white70),
+              ),
+            ],
+          ),
+          backgroundColor: isDark ? Colors.grey[900] : Colors.teal,
+        ),
+        body: _screens[_currentIndex],
         floatingActionButton: _buildFab(),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -172,17 +180,12 @@ class _MainScreenState extends State<MainScreen> {
           icon: const Icon(Icons.share),
           tooltip: '앱 공유하기',
         ),
-        ActionButton(
-          onPressed: () => _onFabSelected('version'),
-          icon: const Icon(Icons.info),
-          tooltip: '앱 정보',
-        ),
       ],
     );
   }
 }
 
-// FAB 관련 클래스
+// FAB 위젯들
 class ExpandableFab extends StatefulWidget {
   final double distance;
   final List<Widget> children;
