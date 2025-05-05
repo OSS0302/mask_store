@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:js_interop';
 
 import 'package:http/http.dart' as http;
 import 'package:mask_store/data/model/mask_store.dart';
@@ -15,7 +16,7 @@ class MaskStoreApi {
         distance: 0,
         remainStatus: e['remain_stat'] as String ,
         latitude: e['lat'] as double,
-        longitude: e['lng'] as double, openAt: null, closeAt: null,
+        longitude: e['lng'] as double, openAt: , closeAt: ,
       ),
     ).toList();
   }
