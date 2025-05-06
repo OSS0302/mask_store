@@ -7,8 +7,8 @@ class MaskStore {
   final double longitude;
   bool isFavorite;
   String previousRemainStatus;
-  DateTime openAt;
-  DateTime closeAt;
+  DateTime? openAt;
+  DateTime? closeAt;
 
   MaskStore({
     required this.storeName,
