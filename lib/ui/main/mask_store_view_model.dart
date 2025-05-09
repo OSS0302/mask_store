@@ -35,23 +35,37 @@ class MaskStoreViewModel extends ChangeNotifier {
   bool showFavoritesOnly = false;
   String _sortCriteria = 'distance'; // 'distance', 'stock', 'name'
 
-  MaskStoreState _state = MaskStoreState(isLoading: false, stores: List.unmodifiable([]));
+  MaskStoreState _state =
+      MaskStoreState(isLoading: false, stores: List.unmodifiable([]));
   List<MaskStore> _allStores = [];
   MaskStore? _plentyAlertStore;
 
   // Getters
   String get initialScreen => _initialScreen;
+
   bool get isDarkMode => _isDarkMode;
+
   bool get isNotificationsEnabled => _isNotificationsEnabled;
+
   String get currentLanguage => _currentLanguage;
+
   String get currentThemeColorName => _currentThemeColorName;
+
   double get fontSize => _fontSize;
+
   List<String> get cartItems => List.unmodifiable(_cartItems);
-  List<MaskStore> get recentlyViewedStores => List.unmodifiable(_recentlyViewedStores);
+
+  List<MaskStore> get recentlyViewedStores =>
+      List.unmodifiable(_recentlyViewedStores);
+
   Map<String, String> get storeNotes => _storeNotes;
+
   bool get showWelcomeMessage => _showWelcomeMessage;
+
   String get sortCriteria => _sortCriteria;
+
   MaskStoreState get state => _state;
+
   MaskStore? get plentyAlertStore => _plentyAlertStore;
 
   // ===== 설정 관련 =====
@@ -76,6 +90,7 @@ class MaskStoreViewModel extends ChangeNotifier {
   }
 
   MaterialColor _currentThemeColor = Colors.blue;
+
   MaterialColor get currentThemeColor => _currentThemeColor;
 
   void changeThemeColor(MaterialColor color) {
@@ -151,12 +166,19 @@ class MaskStoreViewModel extends ChangeNotifier {
     List<MaskStore> result = List.from(_allStores);
 
     if (_searchQuery.isNotEmpty) {
-      result = result.where((s) => s.storeName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+      result = result
+          .where((s) =>
+              s.storeName.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
 
     if (showOpenNowOnly) {
       final now = DateTime.now();
-      result = result.where((s) => s.openAt?.isBefore(now) == true && s.closeAt?.isAfter(now) == true).toList();
+      result = result
+          .where((s) =>
+              s.openAt?.isBefore(now) == true &&
+              s.closeAt?.isAfter(now) == true)
+          .toList();
     }
 
     if (showFavoritesOnly) {
@@ -214,7 +236,7 @@ class MaskStoreViewModel extends ChangeNotifier {
   void updateStores(List<MaskStore> newStores) {
     for (var newStore in newStores) {
       final existing = _state.stores.firstWhere(
-            (s) => s.storeName == newStore.storeName,
+        (s) => s.storeName == newStore.storeName,
         orElse: () => newStore,
       );
 
@@ -254,12 +276,12 @@ class MaskStoreViewModel extends ChangeNotifier {
 
   void sortByStock() {
     const stockOrder = {
-      'plenty': 0,  // 100개 이상
-      'some': 1,    // 30~99개
-      'few': 2,     // 2~29개
-      'empty': 3,   // 1개 이하
-      'break': 4,   // 판매 중지
-      '': 5,        // 값 없음
+      'plenty': 0, // 100개 이상
+      'some': 1, // 30~99개
+      'few': 2, // 2~29개
+      'empty': 3, // 1개 이하
+      'break': 4, // 판매 중지
+      '': 5, // 값 없음
     };
 
     _state.stores.sort((a, b) {
@@ -269,7 +291,4 @@ class MaskStoreViewModel extends ChangeNotifier {
     });
     notifyListeners();
   }
-
-
-
 }
