@@ -1,291 +1,278 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mask_store/ui/main/mask_store_view_model.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
-import '../component/store_item.dart';
-
-class MaskStoreScreen extends StatefulWidget {
-  const MaskStoreScreen({super.key});
+class ContactUsScreen extends StatefulWidget {
+  const ContactUsScreen({Key? key}) : super(key: key);
 
   @override
-  State<MaskStoreScreen> createState() => _MaskStoreScreenState();
+  State<ContactUsScreen> createState() => _ContactUsScreenState();
 }
 
-class _MaskStoreScreenState extends State<MaskStoreScreen> {
-  final FlutterTts _tts = FlutterTts();
-  bool _fabExpanded = false;
+class _ContactUsScreenState extends State<ContactUsScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _messageController = TextEditingController();
+  final _appVersionController = TextEditingController();
+
+  String? _selectedType;
+  String? _selectedPharmacy;
+  File? _selectedFile;
+  bool _isSubmitting = false;
+  bool _isAgreed = false;
+
+  final List<String> _inquiryTypes = [
+    '일반 문의',
+    '즐겨찾기 오류',
+    '재고 정보 오류',
+    '가장 가까운 약국 오류',
+    '음성 안내 문제',
+    '기타',
+  ];
+
+  final List<String> _pharmacies = [
+    '한솔약국',
+    '건강한약국',
+    '우리들약국',
+    '편한약국',
+    '자주 가는 약국 없음',
+  ];
 
   @override
-  void dispose() {
-    _tts.stop();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadAppVersion();
   }
 
-  Future<void> _speakStoreCount(int count) async {
-    await _tts.setLanguage("ko-KR");
-    await _tts.setPitch(1.0);
-    await _tts.setSpeechRate(0.5);
-    await _tts.speak("현재 ${count}개의 약국이 검색되었습니다.");
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersionController.text = info.version;
+    });
+  }
+
+  double _calculateProgress() {
+    int filled = 0;
+    if (_nameController.text.isNotEmpty) filled++;
+    if (_emailController.text.isNotEmpty) filled++;
+    if (_selectedType != null) filled++;
+    if (_messageController.text.isNotEmpty) filled++;
+    return filled / 4;
+  }
+
+  Future<void> _pickFile() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      final file = File(picked.path);
+      final size = await file.length();
+      final ext = file.path.split('.').last.toLowerCase();
+      if (size > 5 * 1024 * 1024) {
+        _showSnack('파일 크기는 5MB 이하만 가능합니다.');
+      } else if (!['jpg', 'jpeg', 'png'].contains(ext)) {
+        _showSnack('허용된 형식: JPG, JPEG, PNG');
+      } else {
+        setState(() => _selectedFile = file);
+      }
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _submit() async {
+    if (!_formKey.currentState!.validate() || !_isAgreed) {
+      _showSnack('모든 필드를 작성하고 동의해주세요.');
+      return;
+    }
+
+    final confirmed = await _showConfirmationDialog();
+    if (!confirmed) return;
+
+    setState(() => _isSubmitting = true);
+    await Future.delayed(const Duration(seconds: 2));
+    setState(() => _isSubmitting = false);
+
+    _showSnack('문의가 전송되었습니다!');
+    _formKey.currentState!.reset();
+    _nameController.clear();
+    _emailController.clear();
+    _messageController.clear();
+    setState(() {
+      _selectedType = null;
+      _selectedPharmacy = null;
+      _selectedFile = null;
+      _isAgreed = false;
+    });
+  }
+
+  Future<bool> _showConfirmationDialog() async {
+    return (await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('전송 확인'),
+        content: const Text('작성하신 내용을 전송하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('전송')),
+        ],
+      ),
+    )) ??
+        false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<MaskStoreViewModel>();
-    final isDarkMode = viewModel.isDarkMode;
-    final storeCount = viewModel.state.stores.length;
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        elevation: 4,
-        title: Text(
-          '마스크 재고 약국 ($storeCount곳)',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.white : Colors.black,
-          ),
+        title: const Text('문의하기'),
+        backgroundColor: isDark ? Colors.grey[900] : Colors.cyan,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? LinearGradient(colors: [Colors.black, Colors.grey[900]!])
+              : LinearGradient(colors: [Colors.white, Colors.teal[50]!]),
         ),
-        backgroundColor: isDarkMode ? Colors.black : Colors.teal.shade700,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.favorite, color: isDarkMode ? Colors.redAccent : Colors.red),
-            onPressed: () => context.push("/favorites"),
-          ),
-          IconButton(
-            icon: Icon(Icons.map, color: isDarkMode ? Colors.white : Colors.black),
-            onPressed: () => context.push("/mapViewScreen"),
-          ),
-          IconButton(
-            icon: Icon(Icons.settings, color: isDarkMode ? Colors.white : Colors.black),
-            onPressed: () => context.push("/settings"),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: viewModel.refreshStores,
-            child: Column(
-              children: [
-                _buildSearchAndFilter(context, viewModel),
-                const Divider(height: 1, thickness: 1, color: Colors.teal),
-                Expanded(
-                  child: viewModel.state.isLoading
-                      ? _buildLoadingIndicator(isDarkMode)
-                      : viewModel.state.stores.isEmpty
-                      ? _buildNoResults(isDarkMode)
-                      : _buildStoreList(viewModel, isDarkMode),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (_fabExpanded) ...[
-                  _fabMiniButton(
-                    icon: Icons.refresh,
-                    label: "새로고침",
-                    onPressed: () => viewModel.refreshStores(),
-                  ),
-                  const SizedBox(height: 10),
-                  _fabMiniButton(
-                    icon: Icons.arrow_upward,
-                    label: "맨 위로",
-                    onPressed: () {
-                      viewModel.scrollController.animateTo(
-                        0.0,
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeOut,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _fabMiniButton(
-                    icon: Icons.volume_up,
-                    label: "음성 안내",
-                    onPressed: () => _speakStoreCount(storeCount),
-                  ),
-                  const SizedBox(height: 10),
-                  _fabMiniButton(
-                    icon: Icons.map,
-                    label: "지도 보기",
-                    onPressed: () => context.push("/mapViewScreen"),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                FloatingActionButton(
-                  onPressed: () {
-                    setState(() {
-                      _fabExpanded = !_fabExpanded;
-                    });
-                  },
-                  backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal,
-                  child: Icon(_fabExpanded ? Icons.close : Icons.menu),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _fabMiniButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return FloatingActionButton.extended(
-      heroTag: label,
-      icon: Icon(icon),
-      label: Text(label),
-      onPressed: onPressed,
-      backgroundColor: Colors.teal,
-    );
-  }
-
-  Widget _buildSearchAndFilter(BuildContext context, MaskStoreViewModel viewModel) {
-    final isDarkMode = viewModel.isDarkMode;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  onChanged: viewModel.filterStores,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: isDarkMode ? Colors.grey.shade800.withOpacity(0.9) : Colors.white,
-                    hintText: '약국 이름 검색',
-                    hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    prefixIcon: Icon(Icons.search, color: isDarkMode ? Colors.white : Colors.teal),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: Icon(Icons.filter_list, color: isDarkMode ? Colors.white : Colors.teal),
-                onPressed: () => _showSortFilterBottomSheet(context, viewModel),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.access_time, color: isDarkMode ? Colors.white : Colors.teal),
-                  const SizedBox(width: 8),
-                  Text(
-                    '지금 영업 중만 보기',
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black, fontSize: 16),
-                  ),
-                ],
-              ),
-              Switch(
-                value: viewModel.showOpenNowOnly,
-                onChanged: (value) => viewModel.toggleOpenNowOnly(),
-                activeColor: Colors.teal,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStoreList(MaskStoreViewModel viewModel, bool isDarkMode) {
-    return ListView.builder(
-      controller: viewModel.scrollController,
-      itemCount: viewModel.state.stores.length,
-      itemBuilder: (context, index) {
-        final store = viewModel.state.stores[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Card(
-            color: isDarkMode ? Colors.grey.shade900 : Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            elevation: 12,
-            shadowColor: Colors.black.withOpacity(0.4),
-            child: StoreItem(maskStore: store),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildLoadingIndicator(bool isDarkMode) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: isDarkMode ? Colors.white : Colors.teal),
-          const SizedBox(height: 16),
-          Text(
-            '데이터를 불러오는 중...',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: isDarkMode ? Colors.white : Colors.teal.shade700),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNoResults(bool isDarkMode) {
-    return Center(
-      child: Text(
-        '검색 결과가 없습니다.',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: isDarkMode ? Colors.white : Colors.grey.shade600),
-      ),
-    );
-  }
-
-  void _showSortFilterBottomSheet(BuildContext context, MaskStoreViewModel viewModel) {
-    final isDarkMode = viewModel.isDarkMode;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDarkMode ? Colors.black : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text('거리 순', style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black)),
-                onTap: () {
-                  viewModel.sortByDistance();
-                  context.pop();
-                },
-              ),
-              ListTile(
-                title: Text('재고 순', style: TextStyle(fontSize: 18, color: isDarkMode ? Colors.white : Colors.black)),
-                onTap: () {
-                  viewModel.sortByStock();
-                  context.pop();
-                },
-              ),
-            ],
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('문의 내용을 입력해주세요', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                LinearProgressIndicator(
+                  value: _calculateProgress(),
+                  backgroundColor: isDark ? Colors.grey[800] : Colors.teal[100],
+                  color: isDark ? Colors.tealAccent : Colors.cyan,
+                ),
+                const SizedBox(height: 16),
+                _buildField(_nameController, '이름', '이름을 입력하세요', isDark, validator: _required),
+                const SizedBox(height: 12),
+                _buildField(_emailController, '이메일', 'example@email.com', isDark,
+                    validator: _validateEmail),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedType,
+                  items: _inquiryTypes
+                      .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                      .toList(),
+                  decoration: _dropdownDecoration('문의 유형'),
+                  onChanged: (value) => setState(() => _selectedType = value),
+                  validator: (value) => value == null ? '문의 유형을 선택해주세요.' : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedPharmacy,
+                  items: _pharmacies
+                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                      .toList(),
+                  decoration: _dropdownDecoration('관련 약국 (선택)'),
+                  onChanged: (value) => setState(() => _selectedPharmacy = value),
+                ),
+                const SizedBox(height: 12),
+                _buildField(_messageController, '문의 내용', '내용을 입력해주세요', isDark,
+                    maxLines: 5, validator: _required),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _appVersionController,
+                  readOnly: true,
+                  decoration: _readonlyDecoration('앱 버전'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _pickFile,
+                      icon: const Icon(Icons.attach_file),
+                      label: const Text('파일 첨부'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? Colors.tealAccent : Colors.cyan,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    if (_selectedFile != null)
+                      Expanded(
+                        child: Text(
+                          _selectedFile!.path.split('/').last,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _isAgreed,
+                      onChanged: (v) => setState(() => _isAgreed = v ?? false),
+                    ),
+                    const Expanded(
+                      child: Text('개인정보 수집 및 이용에 동의합니다.'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: _isSubmitting ? null : _submit,
+                    icon: _isSubmitting
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Icon(Icons.send),
+                    label: Text(_isSubmitting ? '전송 중...' : '문의 전송'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? Colors.tealAccent : Colors.cyan,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
+                )
+              ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
+  }
+
+  InputDecoration _dropdownDecoration(String label) => InputDecoration(
+    labelText: label,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  );
+
+  InputDecoration _readonlyDecoration(String label) => InputDecoration(
+    labelText: label,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    fillColor: Colors.grey[200],
+    filled: true,
+  );
+
+  Widget _buildField(TextEditingController controller, String label, String hint, bool darkMode,
+      {String? Function(String?)? validator, int maxLines = 1}) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        filled: true,
+        fillColor: darkMode ? Colors.grey[800] : Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  String? _required(String? val) => val == null || val.trim().isEmpty ? '필수 항목입니다.' : null;
+
+  String? _validateEmail(String? val) {
+    if (val == null || val.trim().isEmpty) return '이메일을 입력해주세요.';
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    return !emailRegex.hasMatch(val) ? '올바른 이메일 형식이 아닙니다.' : null;
   }
 }
