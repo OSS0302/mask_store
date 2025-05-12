@@ -22,6 +22,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   File? _selectedFile;
   bool _isSubmitting = false;
   bool _isAgreed = false;
+  bool _isSubmitted = false;
 
   final List<String> _inquiryTypes = [
     '일반 문의',
@@ -48,9 +49,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
   Future<void> _loadAppVersion() async {
     final info = await PackageInfo.fromPlatform();
-    setState(() {
-      _appVersionController.text = info.version;
-    });
+    _appVersionController.text = info.version;
   }
 
   double _calculateProgress() {
@@ -83,7 +82,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  void _submit() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || !_isAgreed) {
       _showSnack('모든 필드를 작성하고 동의해주세요.');
       return;
@@ -94,9 +93,15 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
     setState(() => _isSubmitting = true);
     await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isSubmitting = false);
+    setState(() {
+      _isSubmitting = false;
+      _isSubmitted = true;
+    });
 
     _showSnack('문의가 전송되었습니다!');
+  }
+
+  void _resetForm() {
     _formKey.currentState!.reset();
     _nameController.clear();
     _emailController.clear();
@@ -106,6 +111,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       _selectedPharmacy = null;
       _selectedFile = null;
       _isAgreed = false;
+      _isSubmitted = false;
     });
   }
 
@@ -114,7 +120,16 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('전송 확인'),
-        content: const Text('작성하신 내용을 전송하시겠습니까?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('이름: ${_nameController.text}'),
+            Text('이메일: ${_emailController.text}'),
+            Text('문의 유형: $_selectedType'),
+            Text('관련 약국: ${_selectedPharmacy ?? "없음"}'),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('전송')),
@@ -127,6 +142,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('문의하기'),
@@ -138,10 +154,13 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
               ? LinearGradient(colors: [Colors.black, Colors.grey[900]!])
               : LinearGradient(colors: [Colors.white, Colors.teal[50]!]),
         ),
-        child: SingleChildScrollView(
+        child: _isSubmitted
+            ? _buildSuccessScreen()
+            : SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
+            onChanged: () => setState(() {}),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -164,7 +183,16 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                       .map((type) => DropdownMenuItem(value: type, child: Text(type)))
                       .toList(),
                   decoration: _dropdownDecoration('문의 유형'),
-                  onChanged: (value) => setState(() => _selectedType = value),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedType = value;
+                      if (value == '재고 정보 오류') {
+                        _messageController.text = '재고 정보가 실제와 다릅니다. 확인 부탁드립니다.';
+                      } else if (value == '음성 안내 문제') {
+                        _messageController.text = '음성 안내가 정확하지 않습니다. 수정 부탁드립니다.';
+                      }
+                    });
+                  },
                   validator: (value) => value == null ? '문의 유형을 선택해주세요.' : null,
                 ),
                 const SizedBox(height: 12),
@@ -206,6 +234,13 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                       ),
                   ],
                 ),
+                if (_selectedFile != null) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(_selectedFile!, height: 150),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -223,7 +258,11 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _isSubmitting ? null : _submit,
                     icon: _isSubmitting
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
                         : const Icon(Icons.send),
                     label: Text(_isSubmitting ? '전송 중...' : '문의 전송'),
                     style: ElevatedButton.styleFrom(
@@ -231,10 +270,36 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessScreen() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 80),
+            const SizedBox(height: 16),
+            const Text('문의가 성공적으로 전송되었습니다!', style: TextStyle(fontSize: 18)),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _resetForm,
+              icon: const Icon(Icons.restart_alt),
+              label: const Text('다시 작성하기'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ],
         ),
       ),
     );
