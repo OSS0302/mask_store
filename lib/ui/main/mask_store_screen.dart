@@ -16,13 +16,11 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final _emailController = TextEditingController();
   final _messageController = TextEditingController();
   final _appVersionController = TextEditingController();
-
   String? _selectedType;
   String? _selectedPharmacy;
   File? _selectedFile;
   bool _isSubmitting = false;
   bool _isAgreed = false;
-  bool _isSubmitted = false;
 
   final List<String> _inquiryTypes = [
     '일반 문의',
@@ -49,7 +47,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
   Future<void> _loadAppVersion() async {
     final info = await PackageInfo.fromPlatform();
-    _appVersionController.text = info.version;
+    setState(() => _appVersionController.text = info.version);
   }
 
   double _calculateProgress() {
@@ -82,7 +80,21 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _submit() async {
+  Future<bool> _showConfirmationDialog() async {
+    return (await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('전송 확인'),
+        content: const Text('작성하신 내용을 전송하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('전송')),
+        ],
+      ),
+    )) ?? false;
+  }
+
+  void _submit() async {
     if (!_formKey.currentState!.validate() || !_isAgreed) {
       _showSnack('모든 필드를 작성하고 동의해주세요.');
       return;
@@ -93,15 +105,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
     setState(() => _isSubmitting = true);
     await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isSubmitting = false;
-      _isSubmitted = true;
-    });
+    setState(() => _isSubmitting = false);
 
     _showSnack('문의가 전송되었습니다!');
-  }
-
-  void _resetForm() {
     _formKey.currentState!.reset();
     _nameController.clear();
     _emailController.clear();
@@ -111,32 +117,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       _selectedPharmacy = null;
       _selectedFile = null;
       _isAgreed = false;
-      _isSubmitted = false;
     });
-  }
-
-  Future<bool> _showConfirmationDialog() async {
-    return (await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('전송 확인'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('이름: ${_nameController.text}'),
-            Text('이메일: ${_emailController.text}'),
-            Text('문의 유형: $_selectedType'),
-            Text('관련 약국: ${_selectedPharmacy ?? "없음"}'),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('전송')),
-        ],
-      ),
-    )) ??
-        false;
   }
 
   @override
@@ -146,128 +127,97 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('문의하기'),
-        backgroundColor: isDark ? Colors.grey[900] : Colors.cyan,
+        backgroundColor: isDark ? Colors.grey[900] : Colors.teal,
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: isDark
-              ? LinearGradient(colors: [Colors.black, Colors.grey[900]!])
-              : LinearGradient(colors: [Colors.white, Colors.teal[50]!]),
+          gradient: LinearGradient(
+            colors: isDark
+                ? [Colors.black, Colors.grey[900]!]
+                : [Colors.white, Colors.teal[50]!],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
         ),
-        child: _isSubmitted
-            ? _buildSuccessScreen()
-            : SingleChildScrollView(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
-            onChanged: () => setState(() {}),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('문의 내용을 입력해주세요', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/images/contact_banner.png',
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 20),
                 LinearProgressIndicator(
                   value: _calculateProgress(),
-                  backgroundColor: isDark ? Colors.grey[800] : Colors.teal[100],
-                  color: isDark ? Colors.tealAccent : Colors.cyan,
+                  backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
+                  color: isDark ? Colors.tealAccent : Colors.teal,
                 ),
                 const SizedBox(height: 16),
-                _buildField(_nameController, '이름', '이름을 입력하세요', isDark, validator: _required),
-                const SizedBox(height: 12),
-                _buildField(_emailController, '이메일', 'example@email.com', isDark,
-                    validator: _validateEmail),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _selectedType,
-                  items: _inquiryTypes
-                      .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                      .toList(),
-                  decoration: _dropdownDecoration('문의 유형'),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedType = value;
-                      if (value == '재고 정보 오류') {
-                        _messageController.text = '재고 정보가 실제와 다릅니다. 확인 부탁드립니다.';
-                      } else if (value == '음성 안내 문제') {
-                        _messageController.text = '음성 안내가 정확하지 않습니다. 수정 부탁드립니다.';
-                      }
-                    });
-                  },
-                  validator: (value) => value == null ? '문의 유형을 선택해주세요.' : null,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _selectedPharmacy,
-                  items: _pharmacies
-                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                      .toList(),
-                  decoration: _dropdownDecoration('관련 약국 (선택)'),
-                  onChanged: (value) => setState(() => _selectedPharmacy = value),
-                ),
-                const SizedBox(height: 12),
-                _buildField(_messageController, '문의 내용', '내용을 입력해주세요', isDark,
-                    maxLines: 5, validator: _required),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _appVersionController,
-                  readOnly: true,
-                  decoration: _readonlyDecoration('앱 버전'),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _pickFile,
-                      icon: const Icon(Icons.attach_file),
-                      label: const Text('파일 첨부'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isDark ? Colors.tealAccent : Colors.cyan,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    if (_selectedFile != null)
-                      Expanded(
-                        child: Text(
-                          _selectedFile!.path.split('/').last,
-                          overflow: TextOverflow.ellipsis,
+                _buildCardForm([
+                  _buildField(_nameController, '이름', '이름을 입력하세요', isDark, validator: _required),
+                  _buildField(_emailController, '이메일', 'example@email.com', isDark, validator: _validateEmail),
+                  _buildDropdown('문의 유형', _inquiryTypes, _selectedType, (val) => setState(() => _selectedType = val), validator: _requiredDropdown),
+                  _buildDropdown('관련 약국 (선택)', _pharmacies, _selectedPharmacy, (val) => setState(() => _selectedPharmacy = val)),
+                  _buildField(_messageController, '문의 내용', '내용을 입력해주세요', isDark, maxLines: 5, validator: _required),
+                  TextFormField(
+                    controller: _appVersionController,
+                    readOnly: true,
+                    decoration: _readonlyDecoration('앱 버전'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _pickFile,
+                        icon: const Icon(Icons.attach_file),
+                        label: const Text('파일 첨부'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? Colors.tealAccent : Colors.teal,
                         ),
                       ),
-                  ],
-                ),
-                if (_selectedFile != null) ...[
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(_selectedFile!, height: 150),
+                      const SizedBox(width: 10),
+                      if (_selectedFile != null)
+                        Expanded(
+                          child: Text(
+                            _selectedFile!.path.split('/').last,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
                   ),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _isAgreed,
-                      onChanged: (v) => setState(() => _isAgreed = v ?? false),
-                    ),
-                    const Expanded(
-                      child: Text('개인정보 수집 및 이용에 동의합니다.'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _isAgreed,
+                        onChanged: (v) => setState(() => _isAgreed = v ?? false),
+                      ),
+                      const Expanded(
+                        child: Text('개인정보 수집 및 이용에 동의합니다.'),
+                      ),
+                    ],
+                  ),
+                ]),
+                const SizedBox(height: 24),
                 Center(
                   child: ElevatedButton.icon(
                     onPressed: _isSubmitting ? null : _submit,
                     icon: _isSubmitting
-                        ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : const Icon(Icons.send),
                     label: Text(_isSubmitting ? '전송 중...' : '문의 전송'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? Colors.tealAccent : Colors.cyan,
+                      backgroundColor: isDark ? Colors.tealAccent : Colors.teal,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                     ),
                   ),
                 ),
@@ -279,61 +229,64 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     );
   }
 
-  Widget _buildSuccessScreen() {
-    return Center(
+  Widget _buildCardForm(List<Widget> children) {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 80),
-            const SizedBox(height: 16),
-            const Text('문의가 성공적으로 전송되었습니다!', style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _resetForm,
-              icon: const Icon(Icons.restart_alt),
-              label: const Text('다시 작성하기'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ],
+        padding: const EdgeInsets.all(16),
+        child: Column(children: children),
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController controller, String label, String hint, bool darkMode,
+      {String? Function(String?)? validator, int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        validator: validator,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          filled: true,
+          fillColor: darkMode ? Colors.grey[850] : Colors.grey[100],
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
   }
 
-  InputDecoration _dropdownDecoration(String label) => InputDecoration(
-    labelText: label,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-  );
-
-  InputDecoration _readonlyDecoration(String label) => InputDecoration(
-    labelText: label,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    fillColor: Colors.grey[200],
-    filled: true,
-  );
-
-  Widget _buildField(TextEditingController controller, String label, String hint, bool darkMode,
-      {String? Function(String?)? validator, int maxLines = 1}) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        filled: true,
-        fillColor: darkMode ? Colors.grey[800] : Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _buildDropdown(String label, List<String> items, String? value, void Function(String?)? onChanged,
+      {String? Function(String?)? validator}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        onChanged: onChanged,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }
 
+  InputDecoration _readonlyDecoration(String label) => InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: Colors.grey[200],
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  );
+
   String? _required(String? val) => val == null || val.trim().isEmpty ? '필수 항목입니다.' : null;
+
+  String? _requiredDropdown(String? val) => val == null ? '선택해주세요.' : null;
 
   String? _validateEmail(String? val) {
     if (val == null || val.trim().isEmpty) return '이메일을 입력해주세요.';
