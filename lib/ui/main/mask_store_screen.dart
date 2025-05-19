@@ -1,3 +1,5 @@
+// ContactUsScreen.dart
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -77,15 +79,16 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   void _sendInquiry() {
-    setState(() {
-      _previousInquiries.insert(0, {
-        'date': DateTime.now().toString().substring(0, 16),
-        'type': _selectedType,
-        'message': _messageController.text,
-        'log': _includeLogs,
-        'image': _attachedImage != null,
-      });
+    final inquiry = {
+      'date': DateTime.now().toString().substring(0, 16),
+      'type': _selectedType,
+      'message': _messageController.text,
+      'log': _includeLogs,
+      'image': _attachedImage != null,
+    };
 
+    setState(() {
+      _previousInquiries.insert(0, inquiry);
       _messageController.clear();
       _includeLogs = false;
       _attachedImage = null;
@@ -93,7 +96,57 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('문의가 전송되었습니다.')),
+      SnackBar(
+        content: const Text('문의가 전송되었습니다.'),
+        action: SnackBarAction(
+          label: '되돌리기',
+          onPressed: () {
+            setState(() {
+              _previousInquiries.remove(inquiry);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Icon _getTypeIcon(String type) {
+    switch (type) {
+      case '오류 신고':
+        return const Icon(Icons.bug_report, color: Colors.red);
+      case '개선 제안':
+        return const Icon(Icons.lightbulb_outline, color: Colors.orange);
+      case '기타':
+        return const Icon(Icons.more_horiz, color: Colors.grey);
+      default:
+        return const Icon(Icons.help_outline, color: Colors.blue);
+    }
+  }
+
+  void _showInquiryDetail(Map<String, dynamic> entry) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(entry['type']),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('날짜: ${entry['date']}'),
+            const SizedBox(height: 8),
+            Text('내용:\n${entry['message']}'),
+            const SizedBox(height: 8),
+            Text('앱 로그 첨부: ${entry['log'] ? '예' : '아니오'}'),
+            Text('스크린샷 첨부: ${entry['image'] ? '예' : '아니오'}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('닫기'),
+            onPressed: () => Navigator.pop(context),
+          )
+        ],
+      ),
     );
   }
 
@@ -196,21 +249,50 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
             const Divider(height: 32),
             Text('이전 문의 내역', style: theme.textTheme.titleMedium),
 
-            ..._previousInquiries.map((entry) => Card(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: ListTile(
-                leading: const Icon(Icons.history),
-                title: Text(entry['type']),
-                subtitle: Text(entry['message']),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (entry['log']) const Icon(Icons.bug_report, size: 16),
-                    if (entry['image']) const Icon(Icons.image, size: 16),
-                  ],
-                ),
+            if (_previousInquiries.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('문의 내역이 없습니다.'),
               ),
-            )),
+
+            ..._previousInquiries.asMap().entries.map((entry) {
+              final index = entry.key;
+              final inquiry = entry.value;
+
+              return Dismissible(
+                key: ValueKey(inquiry['date']),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                onDismissed: (_) {
+                  setState(() => _previousInquiries.removeAt(index));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('문의 내역이 삭제되었습니다.')),
+                  );
+                },
+                child: Card(
+                  child: ListTile(
+                    leading: _getTypeIcon(inquiry['type']),
+                    title: Text(inquiry['type']),
+                    subtitle: Text(inquiry['message'], maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: Wrap(
+                      spacing: 8,
+                      children: [
+                        if (inquiry['log'])
+                          const Tooltip(message: '앱 로그 첨부됨', child: Icon(Icons.bug_report, size: 18)),
+                        if (inquiry['image'])
+                          const Tooltip(message: '이미지 첨부됨', child: Icon(Icons.image, size: 18)),
+                      ],
+                    ),
+                    onTap: () => _showInquiryDetail(inquiry),
+                  ),
+                ),
+              );
+            }),
           ],
         ),
       ),
