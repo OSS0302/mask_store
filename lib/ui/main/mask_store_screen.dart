@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
-import 'dart:convert';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -15,19 +13,20 @@ class ContactUsScreen extends StatefulWidget {
 class _ContactUsScreenState extends State<ContactUsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _messageController = TextEditingController();
+  final _searchController = TextEditingController();
   String _selectedType = '기능 문의';
   bool _includeLogs = false;
   bool _agree = false;
   File? _attachedImage;
   String _appVersion = '...';
+  bool _isSending = false;
 
-  List<Map<String, dynamic>> _previousInquiries = [];
+  final List<Map<String, dynamic>> _previousInquiries = [];
 
   @override
   void initState() {
     super.initState();
     _loadAppVersion();
-    _loadInquiries();
   }
 
   Future<void> _loadAppVersion() async {
@@ -47,20 +46,6 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     }
   }
 
-  Future<void> _loadInquiries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList('inquiries') ?? [];
-    setState(() {
-      _previousInquiries = saved.map((e) => jsonDecode(e)).cast<Map<String, dynamic>>().toList();
-    });
-  }
-
-  Future<void> _saveInquiries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = _previousInquiries.map((e) => jsonEncode(e)).toList();
-    await prefs.setStringList('inquiries', data);
-  }
-
   void _submitInquiry() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -77,7 +62,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         title: const Text('문의 전송'),
         content: const Text('입력한 내용을 전송하시겠습니까?'),
         actions: [
-          TextButton(child: const Text('취소'), onPressed: () => Navigator.pop(context)),
+          TextButton(
+            child: const Text('취소'),
+            onPressed: () => Navigator.pop(context),
+          ),
           ElevatedButton(
             child: const Text('전송'),
             onPressed: () {
@@ -91,174 +79,214 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   void _sendInquiry() async {
-    final newEntry = {
-      'date': DateTime.now().toString().substring(0, 16),
-      'type': _selectedType,
-      'message': _messageController.text,
-      'log': _includeLogs,
-      'image': _attachedImage?.path,
-      'status': '접수됨',
-    };
+    setState(() => _isSending = true);
+
+    await Future.delayed(const Duration(seconds: 1)); // 전송 처리 흉내
 
     setState(() {
-      _previousInquiries.insert(0, newEntry);
+      _previousInquiries.insert(0, {
+        'date': DateTime.now().toString().substring(0, 16),
+        'type': _selectedType,
+        'message': _messageController.text,
+        'log': _includeLogs,
+        'image': _attachedImage,
+      });
+
       _messageController.clear();
       _includeLogs = false;
       _attachedImage = null;
       _agree = false;
+      _isSending = false;
     });
-
-    await _saveInquiries();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('문의가 전송되었습니다.')),
     );
   }
 
+  List<Map<String, dynamic>> get _filteredInquiries {
+    final query = _searchController.text.toLowerCase();
+    return _previousInquiries.where((entry) {
+      return entry['message'].toLowerCase().contains(query) ||
+          entry['type'].toLowerCase().contains(query);
+    }).toList();
+  }
+
+  Icon _getTypeIcon(String type) {
+    switch (type) {
+      case '오류 신고':
+        return const Icon(Icons.bug_report, color: Colors.redAccent);
+      case '개선 제안':
+        return const Icon(Icons.lightbulb, color: Colors.amber);
+      case '기타':
+        return const Icon(Icons.help_outline, color: Colors.grey);
+      default:
+        return const Icon(Icons.build, color: Colors.blueAccent);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('문의하기'), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            Text('앱 버전: $_appVersion', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 16),
-
-            Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: _selectedType,
-                    items: ['기능 문의', '오류 신고', '개선 제안', '기타']
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                        .toList(),
-                    onChanged: (val) => setState(() => _selectedType = val!),
-                    decoration: const InputDecoration(
-                      labelText: '문의 유형',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  if (_selectedType == '오류 신고')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        '오류 재현에 도움이 되는 로그 첨부를 권장합니다.',
-                        style: theme.textTheme.bodySmall!.copyWith(color: Colors.red),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _messageController,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: '문의 내용',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => value == null || value.isEmpty ? '문의 내용을 입력해주세요.' : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  Row(
+      appBar: AppBar(
+        title: const Text('문의하기'),
+        centerTitle: true,
+      ),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ListView(
+              children: [
+                Text('앱 버전: $_appVersion', style: theme.textTheme.bodySmall),
+                const SizedBox(height: 16),
+                Form(
+                  key: _formKey,
+                  child: Column(
                     children: [
-                      Checkbox(
-                        value: _includeLogs,
-                        onChanged: (val) => setState(() => _includeLogs = val!),
-                      ),
-                      const Text('앱 로그 첨부'),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.image),
-                        label: const Text('스크린샷 첨부'),
-                        onPressed: _pickImage,
-                      ),
-                      const SizedBox(width: 8),
-                      if (_attachedImage != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.file(_attachedImage!, width: 50, height: 50, fit: BoxFit.cover),
+                      DropdownButtonFormField<String>(
+                        value: _selectedType,
+                        items: ['기능 문의', '오류 신고', '개선 제안', '기타']
+                            .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                            .toList(),
+                        onChanged: (val) => setState(() => _selectedType = val!),
+                        decoration: const InputDecoration(
+                          labelText: '문의 유형',
+                          border: OutlineInputBorder(),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _agree,
-                        onChanged: (val) => setState(() => _agree = val!),
                       ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _agree = !_agree),
-                          child: const Text(
-                            '문의 전송을 위해 개인정보 처리방침에 동의합니다.',
-                            style: TextStyle(decoration: TextDecoration.underline),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _messageController,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: '문의 내용',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) =>
+                        value == null || value.isEmpty ? '문의 내용을 입력해주세요.' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _includeLogs,
+                            onChanged: (val) => setState(() => _includeLogs = val!),
                           ),
+                          const Text('앱 로그 첨부'),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.image),
+                            label: const Text('스크린샷 첨부'),
+                            onPressed: _pickImage,
+                          ),
+                          const SizedBox(width: 8),
+                          if (_attachedImage != null) ...[
+                            const Icon(Icons.check_circle, color: Colors.green),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => setState(() => _attachedImage = null),
+                              child: const Icon(Icons.close, color: Colors.red),
+                            )
+                          ],
+                        ],
+                      ),
+                      if (_attachedImage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Image.file(_attachedImage!, height: 120),
                         ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _agree,
+                            onChanged: (val) => setState(() => _agree = val!),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _agree = !_agree),
+                              child: const Text(
+                                '문의 전송을 위해 개인정보 처리방침에 동의합니다.',
+                                style: TextStyle(decoration: TextDecoration.underline),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.send),
+                        label: const Text('문의 전송'),
+                        onPressed: _submitInquiry,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-
-                  Center(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.send),
-                      label: const Text('문의 전송'),
-                      onPressed: _submitInquiry,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                      ),
-                    ),
+                ),
+                const Divider(height: 32),
+                Text('이전 문의 내역', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    labelText: '문의 검색',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
                   ),
-                ],
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
+                ..._filteredInquiries.map((entry) => Card(
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  child: ExpansionTile(
+                    leading: _getTypeIcon(entry['type']),
+                    title: Text(entry['type']),
+                    subtitle: Text(entry['date']),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(entry['message']),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                if (entry['log']) const Icon(Icons.bug_report),
+                                if (entry['image'] != null)
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 8.0),
+                                    child: Icon(Icons.image),
+                                  ),
+                              ],
+                            ),
+                            if (entry['image'] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Image.file(entry['image'], height: 100),
+                              ),
+                          ],
+                        ),
+                      )
+                    ],
+                  ),
+                )),
+              ],
+            ),
+          ),
+          if (_isSending)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(),
               ),
             ),
-
-            const Divider(height: 32),
-            Text('이전 문의 내역', style: theme.textTheme.titleMedium),
-
-            ..._previousInquiries.map((entry) => Card(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: ExpansionTile(
-                leading: const Icon(Icons.history),
-                title: Text(entry['type']),
-                subtitle: Text(entry['date']),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('내용: ${entry['message']}'),
-                        if (entry['log']) const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Text('✔ 로그 첨부됨'),
-                        ),
-                        if (entry['image'] != null) Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Image.file(File(entry['image']), height: 100),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text('처리 상태: ${entry['status']}'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            )),
-          ],
-        ),
+        ],
       ),
     );
   }
