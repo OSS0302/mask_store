@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -18,6 +20,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   bool _includeLogs = false;
   bool _agree = false;
   File? _attachedImage;
+  PlatformFile? _attachedFile;
   String _appVersion = '...';
   bool _isSending = false;
 
@@ -42,6 +45,18 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     if (picked != null) {
       setState(() {
         _attachedImage = File(picked.path);
+      });
+    }
+  }
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'txt'],
+    );
+    if (result != null) {
+      setState(() {
+        _attachedFile = result.files.first;
       });
     }
   }
@@ -83,6 +98,26 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
     await Future.delayed(const Duration(seconds: 1)); // 전송 처리 흉내
 
+    // 이메일 보내기 기능
+    final emailBody = '''
+문의 유형: $_selectedType
+앱 버전: $_appVersion
+문의 내용:
+${_messageController.text}
+
+앱 로그 포함 여부: $_includeLogs
+''';
+
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'support@example.com',
+      queryParameters: {
+        'subject': '[문의] $_selectedType',
+        'body': emailBody,
+      },
+    );
+    await launchUrl(uri);
+
     setState(() {
       _previousInquiries.insert(0, {
         'date': DateTime.now().toString().substring(0, 16),
@@ -90,11 +125,13 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         'message': _messageController.text,
         'log': _includeLogs,
         'image': _attachedImage,
+        'file': _attachedFile,
       });
 
       _messageController.clear();
       _includeLogs = false;
       _attachedImage = null;
+      _attachedFile = null;
       _agree = false;
       _isSending = false;
     });
@@ -182,7 +219,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                         children: [
                           ElevatedButton.icon(
                             icon: const Icon(Icons.image),
-                            label: const Text('스크린샷 첨부'),
+                            label: const Text('이미지 첨부'),
                             onPressed: _pickImage,
                           ),
                           const SizedBox(width: 8),
@@ -201,6 +238,27 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Image.file(_attachedImage!, height: 120),
                         ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.attach_file),
+                            label: const Text('파일 첨부'),
+                            onPressed: _pickFile,
+                          ),
+                          const SizedBox(width: 8),
+                          if (_attachedFile != null) ...[
+                            const Icon(Icons.check_circle, color: Colors.green),
+                            const SizedBox(width: 8),
+                            Text(_attachedFile!.name),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => setState(() => _attachedFile = null),
+                              child: const Icon(Icons.close, color: Colors.red),
+                            ),
+                          ],
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -263,12 +321,22 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                                     padding: EdgeInsets.only(left: 8.0),
                                     child: Icon(Icons.image),
                                   ),
+                                if (entry['file'] != null)
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 8.0),
+                                    child: Icon(Icons.attach_file),
+                                  ),
                               ],
                             ),
                             if (entry['image'] != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8.0),
                                 child: Image.file(entry['image'], height: 100),
+                              ),
+                            if (entry['file'] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text('첨부 파일: ${entry['file'].name}'),
                               ),
                           ],
                         ),
@@ -282,9 +350,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           if (_isSending)
             Container(
               color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
         ],
       ),
