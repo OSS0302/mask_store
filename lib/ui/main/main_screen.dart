@@ -22,7 +22,7 @@ class _MainScreenState extends State<MainScreen> {
   String _appVersion = '';
 
   final List<Widget> _screens = const [
-    MaskStoreScreen(),
+    ContactUsScreen(),
     SettingsScreen(),
   ];
 
