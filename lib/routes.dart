@@ -24,7 +24,7 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/maskStoreScreen',
-      builder: (context, state) => const MaskStoreScreen(),
+      builder: (context, state) => const ContactUsScreen(),
     ),
     GoRoute(
       path: '/favoritesScreen',
