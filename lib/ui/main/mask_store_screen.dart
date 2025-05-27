@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:screenshot/screenshot.dart';
+
+// ... 기존 import 유지
+import 'package:screenshot/screenshot.dart'; // 자동 스크린샷 기능
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
