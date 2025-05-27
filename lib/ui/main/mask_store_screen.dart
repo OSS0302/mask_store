@@ -1,11 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:screenshot/screenshot.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-// ... 기존 import 유지
-import 'package:screenshot/screenshot.dart'; // 자동 스크린샷 기능
+import 'package:file_picker/file_picker.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -18,6 +18,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _messageController = TextEditingController();
   final _searchController = TextEditingController();
+
   String _selectedType = '기능 문의';
   bool _includeLogs = false;
   bool _agree = false;
@@ -27,9 +28,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   String _appVersion = '...';
   bool _isSending = false;
 
-  final List<Map<String, dynamic>> _previousInquiries = [];
-
   final ScreenshotController _screenshotController = ScreenshotController();
+
+  final List<Map<String, dynamic>> _previousInquiries = [];
 
   @override
   void initState() {
@@ -59,7 +60,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf', 'txt'],
     );
-    if (result != null) {
+    if (result != null && result.files.isNotEmpty) {
       setState(() {
         _attachedFile = result.files.first;
       });
@@ -89,7 +90,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       return;
     }
 
-    await _captureScreenshotIfNeeded(); // 자동 스크린샷
+    await _captureScreenshotIfNeeded();
 
     showDialog(
       context: context,
@@ -116,7 +117,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   void _sendInquiry() async {
     setState(() => _isSending = true);
 
-    await Future.delayed(const Duration(seconds: 1)); // 전송 처리 흉내
+    await Future.delayed(const Duration(seconds: 1));
 
     final emailBody = '''
 문의 유형: $_selectedType
@@ -135,6 +136,7 @@ ${_messageController.text}
         'body': emailBody,
       },
     );
+
     await launchUrl(uri);
 
     setState(() {
@@ -192,7 +194,6 @@ ${_messageController.text}
       child: Scaffold(
         appBar: AppBar(
           title: const Text('문의하기'),
-          centerTitle: true,
         ),
         body: Stack(
           children: [
@@ -246,17 +247,18 @@ ${_messageController.text}
                               onPressed: _pickImage,
                             ),
                             const SizedBox(width: 8),
-                            if (_attachedImage != null || _autoCapturedScreenshot != null) ...[
+                            if (_attachedImage != null || _autoCapturedScreenshot != null)
                               const Icon(Icons.check_circle, color: Colors.green),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () => setState(() {
-                                  _attachedImage = null;
-                                  _autoCapturedScreenshot = null;
-                                }),
-                                child: const Icon(Icons.close, color: Colors.red),
-                              )
-                            ],
+                            if (_attachedImage != null || _autoCapturedScreenshot != null)
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _attachedImage = null;
+                                    _autoCapturedScreenshot = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.close, color: Colors.red),
+                              ),
                           ],
                         ),
                         if (_attachedImage != null || _autoCapturedScreenshot != null)
@@ -278,12 +280,11 @@ ${_messageController.text}
                             const SizedBox(width: 8),
                             if (_attachedFile != null) ...[
                               const Icon(Icons.check_circle, color: Colors.green),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 4),
                               Text(_attachedFile!.name),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () => setState(() => _attachedFile = null),
-                                child: const Icon(Icons.close, color: Colors.red),
+                              IconButton(
+                                onPressed: () => setState(() => _attachedFile = null),
+                                icon: const Icon(Icons.close, color: Colors.red),
                               ),
                             ],
                           ],
