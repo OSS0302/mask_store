@@ -6,6 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter/gestures.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -141,7 +143,7 @@ ${_messageController.text}
 
     setState(() {
       _previousInquiries.insert(0, {
-        'date': DateTime.now().toString().substring(0, 16),
+        'date': DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
         'type': _selectedType,
         'message': _messageController.text,
         'log': _includeLogs,
@@ -183,6 +185,37 @@ ${_messageController.text}
       default:
         return const Icon(Icons.build, color: Colors.blueAccent);
     }
+  }
+
+  List<TextSpan> _buildMessageSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(https?:\/\/[^\s]+)');
+    final matches = regex.allMatches(text);
+
+    int lastIndex = 0;
+    for (final match in matches) {
+      final url = match.group(0)!;
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(text: text.substring(lastIndex, match.start)));
+      }
+      spans.add(TextSpan(
+        text: url,
+        style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () async {
+            final uri = Uri.parse(url);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+            }
+          },
+      ));
+      lastIndex = match.end;
+    }
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(lastIndex)));
+    }
+
+    return spans;
   }
 
   @override
@@ -319,6 +352,21 @@ ${_messageController.text}
                   const Divider(height: 32),
                   Text('이전 문의 내역', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
+                  if (_previousInquiries.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('문의 유형별 통계', style: theme.textTheme.titleSmall),
+                          const SizedBox(height: 8),
+                          ...['기능 문의', '오류 신고', '개선 제안', '기타'].map((type) {
+                            final count = _previousInquiries.where((e) => e['type'] == type).length;
+                            return Text('$type: $count건');
+                          }).toList(),
+                        ],
+                      ),
+                    ),
                   TextFormField(
                     controller: _searchController,
                     decoration: const InputDecoration(
@@ -341,7 +389,9 @@ ${_messageController.text}
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(entry['message']),
+                              SelectableText.rich(
+                                TextSpan(children: _buildMessageSpans(entry['message'])),
+                              ),
                               if (entry['reply'] != null) ...[
                                 const SizedBox(height: 8),
                                 Container(
