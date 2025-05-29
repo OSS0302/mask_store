@@ -6,8 +6,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:intl/intl.dart';
-import 'package:flutter/gestures.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -20,6 +18,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _messageController = TextEditingController();
   final _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   String _selectedType = '기능 문의';
   bool _includeLogs = false;
@@ -143,7 +142,7 @@ ${_messageController.text}
 
     setState(() {
       _previousInquiries.insert(0, {
-        'date': DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+        'date': DateTime.now().toString().substring(0, 16),
         'type': _selectedType,
         'message': _messageController.text,
         'log': _includeLogs,
@@ -160,6 +159,12 @@ ${_messageController.text}
       _agree = false;
       _isSending = false;
     });
+
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOut,
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('문의가 전송되었습니다.')),
@@ -187,37 +192,6 @@ ${_messageController.text}
     }
   }
 
-  List<TextSpan> _buildMessageSpans(String text) {
-    final spans = <TextSpan>[];
-    final regex = RegExp(r'(https?:\/\/[^\s]+)');
-    final matches = regex.allMatches(text);
-
-    int lastIndex = 0;
-    for (final match in matches) {
-      final url = match.group(0)!;
-      if (match.start > lastIndex) {
-        spans.add(TextSpan(text: text.substring(lastIndex, match.start)));
-      }
-      spans.add(TextSpan(
-        text: url,
-        style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
-        recognizer: TapGestureRecognizer()
-          ..onTap = () async {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri);
-            }
-          },
-      ));
-      lastIndex = match.end;
-    }
-    if (lastIndex < text.length) {
-      spans.add(TextSpan(text: text.substring(lastIndex)));
-    }
-
-    return spans;
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -225,6 +199,7 @@ ${_messageController.text}
     return Screenshot(
       controller: _screenshotController,
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           title: const Text('문의하기'),
         ),
@@ -233,6 +208,7 @@ ${_messageController.text}
             Padding(
               padding: const EdgeInsets.all(16),
               child: ListView(
+                controller: _scrollController,
                 children: [
                   Text('앱 버전: $_appVersion', style: theme.textTheme.bodySmall),
                   const SizedBox(height: 16),
@@ -260,7 +236,7 @@ ${_messageController.text}
                             border: OutlineInputBorder(),
                           ),
                           validator: (value) =>
-                          value == null || value.isEmpty ? '문의 내용을 입력해주세요.' : null,
+                          value == null || value.trim().length < 10 ? '문의 내용을 10자 이상 입력해주세요.' : null,
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -289,6 +265,9 @@ ${_messageController.text}
                                     _attachedImage = null;
                                     _autoCapturedScreenshot = null;
                                   });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('이미지 첨부가 제거되었습니다.')),
+                                  );
                                 },
                                 icon: const Icon(Icons.close, color: Colors.red),
                               ),
@@ -316,7 +295,12 @@ ${_messageController.text}
                               const SizedBox(width: 4),
                               Text(_attachedFile!.name),
                               IconButton(
-                                onPressed: () => setState(() => _attachedFile = null),
+                                onPressed: () {
+                                  setState(() => _attachedFile = null);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('파일 첨부가 제거되었습니다.')),
+                                  );
+                                },
                                 icon: const Icon(Icons.close, color: Colors.red),
                               ),
                             ],
@@ -352,21 +336,6 @@ ${_messageController.text}
                   const Divider(height: 32),
                   Text('이전 문의 내역', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  if (_previousInquiries.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('문의 유형별 통계', style: theme.textTheme.titleSmall),
-                          const SizedBox(height: 8),
-                          ...['기능 문의', '오류 신고', '개선 제안', '기타'].map((type) {
-                            final count = _previousInquiries.where((e) => e['type'] == type).length;
-                            return Text('$type: $count건');
-                          }).toList(),
-                        ],
-                      ),
-                    ),
                   TextFormField(
                     controller: _searchController,
                     decoration: const InputDecoration(
@@ -389,9 +358,7 @@ ${_messageController.text}
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SelectableText.rich(
-                                TextSpan(children: _buildMessageSpans(entry['message'])),
-                              ),
+                              Text(entry['message']),
                               if (entry['reply'] != null) ...[
                                 const SizedBox(height: 8),
                                 Container(
