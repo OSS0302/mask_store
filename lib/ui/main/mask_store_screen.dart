@@ -18,7 +18,6 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _messageController = TextEditingController();
   final _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
 
   String _selectedType = '기능 문의';
   bool _includeLogs = false;
@@ -28,6 +27,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   File? _autoCapturedScreenshot;
   String _appVersion = '...';
   bool _isSending = false;
+  bool _sendCopyToSelf = false;
 
   final ScreenshotController _screenshotController = ScreenshotController();
 
@@ -129,9 +129,14 @@ ${_messageController.text}
 앱 로그 포함 여부: $_includeLogs
 ''';
 
+    final emailRecipients = <String>['support@example.com'];
+    if (_sendCopyToSelf) {
+      emailRecipients.add('user@example.com');
+    }
+
     final uri = Uri(
       scheme: 'mailto',
-      path: 'support@example.com',
+      path: emailRecipients.join(','),
       queryParameters: {
         'subject': '[문의] $_selectedType',
         'body': emailBody,
@@ -157,14 +162,9 @@ ${_messageController.text}
       _attachedFile = null;
       _autoCapturedScreenshot = null;
       _agree = false;
+      _sendCopyToSelf = false;
       _isSending = false;
     });
-
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOut,
-    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('문의가 전송되었습니다.')),
@@ -199,7 +199,6 @@ ${_messageController.text}
     return Screenshot(
       controller: _screenshotController,
       child: Scaffold(
-        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           title: const Text('문의하기'),
         ),
@@ -208,7 +207,6 @@ ${_messageController.text}
             Padding(
               padding: const EdgeInsets.all(16),
               child: ListView(
-                controller: _scrollController,
                 children: [
                   Text('앱 버전: $_appVersion', style: theme.textTheme.bodySmall),
                   const SizedBox(height: 16),
@@ -236,7 +234,7 @@ ${_messageController.text}
                             border: OutlineInputBorder(),
                           ),
                           validator: (value) =>
-                          value == null || value.trim().length < 10 ? '문의 내용을 10자 이상 입력해주세요.' : null,
+                          value == null || value.isEmpty ? '문의 내용을 입력해주세요.' : null,
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -265,9 +263,6 @@ ${_messageController.text}
                                     _attachedImage = null;
                                     _autoCapturedScreenshot = null;
                                   });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('이미지 첨부가 제거되었습니다.')),
-                                  );
                                 },
                                 icon: const Icon(Icons.close, color: Colors.red),
                               ),
@@ -295,12 +290,7 @@ ${_messageController.text}
                               const SizedBox(width: 4),
                               Text(_attachedFile!.name),
                               IconButton(
-                                onPressed: () {
-                                  setState(() => _attachedFile = null);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('파일 첨부가 제거되었습니다.')),
-                                  );
-                                },
+                                onPressed: () => setState(() => _attachedFile = null),
                                 icon: const Icon(Icons.close, color: Colors.red),
                               ),
                             ],
@@ -322,6 +312,15 @@ ${_messageController.text}
                                 ),
                               ),
                             ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _sendCopyToSelf,
+                              onChanged: (val) => setState(() => _sendCopyToSelf = val!),
+                            ),
+                            const Text('나에게도 문의 내용 보내기'),
                           ],
                         ),
                         const SizedBox(height: 16),
