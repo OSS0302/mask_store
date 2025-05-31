@@ -305,10 +305,18 @@ ${_messageController.text}
                             ),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _agree = !_agree),
+                                onTap: () async {
+                                  const url = 'https://your-privacy-policy-url.com';
+                                  if (await canLaunchUrl(Uri.parse(url))) {
+                                    await launchUrl(Uri.parse(url));
+                                  }
+                                },
                                 child: const Text(
                                   '문의 전송을 위해 개인정보 처리방침에 동의합니다.',
-                                  style: TextStyle(decoration: TextDecoration.underline),
+                                  style: TextStyle(
+                                    decoration: TextDecoration.underline,
+                                    color: Colors.blue,
+                                  ),
                                 ),
                               ),
                             ),
