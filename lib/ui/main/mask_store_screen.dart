@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:open_file/open_file.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -30,13 +31,13 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   bool _sendCopyToSelf = false;
 
   final ScreenshotController _screenshotController = ScreenshotController();
-
   final List<Map<String, dynamic>> _previousInquiries = [];
 
   @override
   void initState() {
     super.initState();
     _loadAppVersion();
+    _messageController.addListener(_autoInsertTag);
   }
 
   Future<void> _loadAppVersion() async {
@@ -44,6 +45,19 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     setState(() {
       _appVersion = info.version;
     });
+  }
+
+  void _autoInsertTag() {
+    final tag = '#$_selectedType ';
+    final currentText = _messageController.text;
+    if (!currentText.startsWith(tag)) {
+      _messageController.removeListener(_autoInsertTag);
+      _messageController.text = '$tag$currentText'.trim();
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _messageController.text.length),
+      );
+      _messageController.addListener(_autoInsertTag);
+    }
   }
 
   Future<void> _pickImage() async {
@@ -400,8 +414,27 @@ ${_messageController.text}
                                 ),
                               if (entry['file'] != null)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text('첨부 파일: ${entry['file'].name}'),
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Row(
+                                    children: [
+                                      Text('첨부 파일: ${entry['file'].name}'),
+                                      const SizedBox(width: 8),
+                                      ElevatedButton.icon(
+                                        onPressed: () async {
+                                          final filePath = entry['file'].path;
+                                          if (filePath != null) {
+                                            await OpenFile.open(filePath);
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('파일을 열 수 없습니다.')),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(Icons.download),
+                                        label: const Text('열기'),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                             ],
                           ),
