@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:open_file/open_file.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -49,12 +50,19 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   void _autoInsertTag() {
     final tag = '#$_selectedType ';
     final currentText = _messageController.text;
+
     if (!currentText.startsWith(tag)) {
+      final previousSelection = _messageController.selection;
+      final newText = '$tag$currentText';
+
       _messageController.removeListener(_autoInsertTag);
-      _messageController.text = '$tag$currentText'.trim();
-      _messageController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _messageController.text.length),
+      _messageController.text = newText;
+
+      final newOffset = previousSelection.baseOffset + tag.length;
+      _messageController.selection = TextSelection.collapsed(
+        offset: newOffset.clamp(0, _messageController.text.length),
       );
+
       _messageController.addListener(_autoInsertTag);
     }
   }
