@@ -213,6 +213,11 @@ ${_messageController.text}
     }
   }
 
+  String _removeTag(String message, String type) {
+    final tag = '#$type ';
+    return message.startsWith(tag) ? message.replaceFirst(tag, '') : message;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -231,7 +236,104 @@ ${_messageController.text}
                 children: [
                   Text('앱 버전: $_appVersion', style: theme.textTheme.bodySmall),
                   const SizedBox(height: 16),
-                  // ... 생략된 UI 코드 ...
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: _selectedType,
+                          items: ['기능 문의', '오류 신고', '개선 제안', '기타']
+                              .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(type),
+                          ))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedType = value;
+                                _autoInsertTag();
+                              });
+                            }
+                          },
+                          decoration: const InputDecoration(labelText: '문의 유형'),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _messageController,
+                          maxLines: 6,
+                          decoration: const InputDecoration(
+                            labelText: '문의 내용',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return '문의 내용을 입력해주세요.';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        CheckboxListTile(
+                          title: const Text('앱 로그 포함'),
+                          value: _includeLogs,
+                          onChanged: (value) {
+                            setState(() => _includeLogs = value ?? false);
+                          },
+                        ),
+                        CheckboxListTile(
+                          title: const Text('개인정보 처리방침에 동의합니다'),
+                          value: _agree,
+                          onChanged: (value) {
+                            setState(() => _agree = value ?? false);
+                          },
+                        ),
+                        CheckboxListTile(
+                          title: const Text('나에게도 사본 보내기'),
+                          value: _sendCopyToSelf,
+                          onChanged: (value) {
+                            setState(() => _sendCopyToSelf = value ?? false);
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _pickImage,
+                              icon: const Icon(Icons.image),
+                              label: const Text('이미지 첨부'),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: _pickFile,
+                              icon: const Icon(Icons.attach_file),
+                              label: const Text('파일 첨부'),
+                            ),
+                          ],
+                        ),
+                        if (_attachedImage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Image.file(_attachedImage!, height: 100),
+                          ),
+                        if (_attachedFile != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text('첨부 파일: ${_attachedFile!.name}'),
+                          ),
+                        const SizedBox(height: 24),
+                        Center(
+                          child: ElevatedButton.icon(
+                            onPressed: _submitInquiry,
+                            icon: const Icon(Icons.send),
+                            label: const Text('문의 전송'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   ..._filteredInquiries.map((entry) => Card(
                     margin: const EdgeInsets.symmetric(vertical: 6),
                     child: ExpansionTile(
@@ -244,7 +346,7 @@ ${_messageController.text}
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(entry['message']),
+                              Text(_removeTag(entry['message'], entry['type'])),
                               if (entry['reply'] != null) ...[
                                 const SizedBox(height: 8),
                                 Container(
