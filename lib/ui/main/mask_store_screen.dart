@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:screenshot/screenshot.dart';
@@ -38,6 +39,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     super.initState();
     _loadAppVersion();
     _messageController.addListener(_autoInsertTag);
+    _searchController.addListener(() => setState(() {}));
   }
 
   Future<void> _loadAppVersion() async {
@@ -125,6 +127,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
             onPressed: () => Navigator.pop(context),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
             child: const Text('전송'),
             onPressed: () {
               Navigator.pop(context);
@@ -155,16 +160,15 @@ ${_messageController.text}
       emailRecipients.add('user@example.com');
     }
 
-    final uri = Uri(
-      scheme: 'mailto',
-      path: emailRecipients.join(','),
-      queryParameters: {
-        'subject': '[문의] $_selectedType',
-        'body': emailBody,
-      },
+    final subject = '[문의] $_selectedType';
+    final body = emailBody;
+    final recipients = emailRecipients.join(',');
+
+    final mailtoUri = Uri.parse(
+      'mailto:$recipients?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
     );
 
-    await launchUrl(uri);
+    await launchUrl(mailtoUri);
 
     setState(() {
       _previousInquiries.insert(0, {
@@ -221,12 +225,15 @@ ${_messageController.text}
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Screenshot(
       controller: _screenshotController,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('문의하기'),
+          title: Text('문의하기', style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
         ),
         body: Stack(
           children: [
@@ -235,6 +242,17 @@ ${_messageController.text}
               child: ListView(
                 children: [
                   Text('앱 버전: $_appVersion', style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      labelText: '문의 내역 검색',
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                      fillColor: isDark ? Colors.grey[800] : null,
+                      filled: isDark,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Form(
                     key: _formKey,
@@ -249,52 +267,30 @@ ${_messageController.text}
                             child: Text(type),
                           ))
                               .toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedType = value;
-                                _autoInsertTag();
-                              });
-                            }
-                          },
+                          onChanged: (value) => setState(() => _selectedType = value!),
                           decoration: const InputDecoration(labelText: '문의 유형'),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         TextFormField(
                           controller: _messageController,
-                          maxLines: 6,
+                          maxLines: 5,
                           decoration: const InputDecoration(
                             labelText: '문의 내용',
                             border: OutlineInputBorder(),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return '문의 내용을 입력해주세요.';
-                            }
-                            return null;
-                          },
+                          validator: (value) =>
+                          value == null || value.isEmpty ? '문의 내용을 입력해주세요.' : null,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         CheckboxListTile(
-                          title: const Text('앱 로그 포함'),
                           value: _includeLogs,
-                          onChanged: (value) {
-                            setState(() => _includeLogs = value ?? false);
-                          },
+                          onChanged: (value) => setState(() => _includeLogs = value ?? false),
+                          title: const Text('앱 로그 포함'),
                         ),
                         CheckboxListTile(
-                          title: const Text('개인정보 처리방침에 동의합니다'),
-                          value: _agree,
-                          onChanged: (value) {
-                            setState(() => _agree = value ?? false);
-                          },
-                        ),
-                        CheckboxListTile(
-                          title: const Text('나에게도 사본 보내기'),
                           value: _sendCopyToSelf,
-                          onChanged: (value) {
-                            setState(() => _sendCopyToSelf = value ?? false);
-                          },
+                          onChanged: (value) => setState(() => _sendCopyToSelf = value ?? false),
+                          title: const Text('나에게도 사본 보내기'),
                         ),
                         const SizedBox(height: 8),
                         Row(
@@ -312,104 +308,109 @@ ${_messageController.text}
                             ),
                           ],
                         ),
-                        if (_attachedImage != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Image.file(_attachedImage!, height: 100),
+                        const SizedBox(height: 8),
+                        CheckboxListTile(
+                          value: _agree,
+                          onChanged: (value) => setState(() => _agree = value ?? false),
+                          title: const Text('개인정보 처리방침에 동의합니다'),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           ),
-                        if (_attachedFile != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text('첨부 파일: ${_attachedFile!.name}'),
-                          ),
-                        const SizedBox(height: 24),
-                        Center(
-                          child: ElevatedButton.icon(
-                            onPressed: _submitInquiry,
-                            icon: const Icon(Icons.send),
-                            label: const Text('문의 전송'),
-                          ),
+                          onPressed: _isSending ? null : _submitInquiry,
+                          icon: const Icon(Icons.send),
+                          label: const Text('문의 전송'),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ..._filteredInquiries.map((entry) => Card(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    child: ExpansionTile(
-                      leading: _getTypeIcon(entry['type']),
-                      title: Text(entry['type']),
-                      subtitle: Text(entry['date']),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(_removeTag(entry['message'], entry['type'])),
-                              if (entry['reply'] != null) ...[
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(8),
+                  if (_filteredInquiries.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Center(child: Text('문의 내역이 없습니다.')),
+                    )
+                  else
+                    ..._filteredInquiries.map((entry) => Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ExpansionTile(
+                        leading: _getTypeIcon(entry['type']),
+                        title: Text(entry['type']),
+                        subtitle: Text(entry['date']),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_removeTag(entry['message'], entry['type'])),
+                                if (entry['reply'] != null) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text('관리자 응답: ${entry['reply']}'),
                                   ),
-                                  child: Text('관리자 응답: ${entry['reply']}'),
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  if (entry['log']) const Icon(Icons.bug_report),
-                                  if (entry['image'] != null)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 8.0),
-                                      child: Icon(Icons.image),
-                                    ),
-                                  if (entry['file'] != null)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 8.0),
-                                      child: Icon(Icons.attach_file),
-                                    ),
                                 ],
-                              ),
-                              if (entry['image'] != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Image.file(entry['image'], height: 100),
-                                ),
-                              if (entry['file'] != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Row(
-                                    children: [
-                                      Text('첨부 파일: ${entry['file'].name}'),
-                                      const SizedBox(width: 8),
-                                      ElevatedButton.icon(
-                                        onPressed: () async {
-                                          final file = entry['file'];
-                                          final filePath = file is PlatformFile ? file.path : null;
-                                          if (filePath != null) {
-                                            await OpenFile.open(filePath);
-                                          } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('파일 경로를 찾을 수 없습니다. 해당 플랫폼에서는 파일 열기가 지원되지 않을 수 있습니다.')),
-                                            );
-                                          }
-                                        },
-                                        icon: const Icon(Icons.download),
-                                        label: const Text('열기'),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    if (entry['log']) const Icon(Icons.bug_report),
+                                    if (entry['image'] != null)
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 8.0),
+                                        child: Icon(Icons.image),
                                       ),
-                                    ],
-                                  ),
+                                    if (entry['file'] != null)
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 8.0),
+                                        child: Icon(Icons.attach_file),
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  )),
+                                if (entry['image'] != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Image.file(entry['image'], height: 100),
+                                  ),
+                                if (entry['file'] != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Row(
+                                      children: [
+                                        Text('첨부 파일: ${entry['file'].name}'),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton.icon(
+                                          onPressed: () async {
+                                            final file = entry['file'];
+                                            final filePath = file is PlatformFile ? file.path : null;
+                                            if (filePath != null) {
+                                              await OpenFile.open(filePath);
+                                            } else {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('파일 경로를 찾을 수 없습니다. 해당 플랫폼에서는 파일 열기가 지원되지 않을 수 있습니다.')),
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(Icons.download),
+                                          label: const Text('열기'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          )
+                        ],
+                      ),
+                    )),
                 ],
               ),
             ),
