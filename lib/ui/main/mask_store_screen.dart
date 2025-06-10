@@ -8,6 +8,7 @@ import 'package:screenshot/screenshot.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ContactUsScreen extends StatefulWidget {
@@ -36,7 +37,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final List<Map<String, dynamic>> _previousInquiries = [];
 
   List<Map<String, dynamic>> get _recentInquiries {
-    return _previousInquiries.take(3).toList();
+    return _filteredInquiries.take(3).toList();
   }
 
   @override
@@ -235,178 +236,110 @@ ${_messageController.text}
     return message.startsWith(tag) ? message.replaceFirst(tag, '') : message;
   }
 
+  void _deleteInquiry(int index) {
+    setState(() {
+      _previousInquiries.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final locale = AppLocalizations.of(context);
 
+    final inquiriesToShow = _searchController.text.isEmpty ? _recentInquiries : _filteredInquiries;
+
     return Screenshot(
       controller: _screenshotController,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(locale.contactUs, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
-          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-          iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
-        ),
-        body: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: ListView(
+          appBar: AppBar(
+            title: Text(locale.contactUs, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+            backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+            iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
+          ),
+          body: Stack(
+              children: [
+          Padding(
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+              children: [
+          Text('${locale.appVersion}: $_appVersion', style: theme.textTheme.bodySmall),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              labelText: locale.searchInquiry,
+              prefixIcon: const Icon(Icons.search),
+              border: const OutlineInputBorder(),
+              fillColor: isDark ? Colors.grey[800] : null,
+              filled: isDark,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (inquiriesToShow.isNotEmpty)
+      Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_searchController.text.isEmpty ? '최근 문의' : '검색 결과', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        ...List.generate(inquiriesToShow.length, (index) {
+          final entry = inquiriesToShow[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            child: ListTile(
+              leading: _getTypeIcon(entry['type']),
+              title: Text(entry['type']),
+              subtitle: Text(entry['date']),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('${locale.appVersion}: $_appVersion', style: theme.textTheme.bodySmall),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      labelText: locale.searchInquiry,
-                      prefixIcon: const Icon(Icons.search),
-                      border: const OutlineInputBorder(),
-                      fillColor: isDark ? Colors.grey[800] : null,
-                      filled: isDark,
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 18),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: entry['message']));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('문의 내용이 복사되었습니다.')),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 16),
-                  if (_recentInquiries.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('최근 문의', style: theme.textTheme.titleMedium),
-                        const SizedBox(height: 8),
-                        ..._recentInquiries.map((entry) => Card(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            leading: _getTypeIcon(entry['type']),
-                            title: Text(entry['type']),
-                            subtitle: Text(entry['date']),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  title: Text(entry['type']),
-                                  content: Text(_removeTag(entry['message'], entry['type'])),
-                                  actions: [
-                                    TextButton(
-                                      child: const Text('닫기'),
-                                      onPressed: () => Navigator.pop(context),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        )),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        DropdownButtonFormField<String>(
-                          value: _selectedType,
-                          decoration: const InputDecoration(labelText: '문의 유형'),
-                          items: [
-                            '기능 문의',
-                            '오류 신고',
-                            '개선 제안',
-                            '기타',
-                          ].map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          )).toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedType = value;
-                              });
-                              _autoInsertTag();
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _messageController,
-                          maxLines: 5,
-                          decoration: const InputDecoration(
-                            labelText: '문의 내용',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return '문의 내용을 입력해주세요.';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _pickImage,
-                              icon: const Icon(Icons.image),
-                              label: const Text('이미지 첨부'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton.icon(
-                              onPressed: _pickFile,
-                              icon: const Icon(Icons.attach_file),
-                              label: const Text('파일 첨부'),
-                            ),
-                          ],
-                        ),
-                        if (_attachedImage != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text('이미지 첨부됨: ${_attachedImage!.path.split('/').last}'),
-                          ),
-                        if (_attachedFile != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text('파일 첨부됨: ${_attachedFile!.name}'),
-                          ),
-                        const SizedBox(height: 16),
-                        CheckboxListTile(
-                          value: _includeLogs,
-                          onChanged: (val) => setState(() => _includeLogs = val ?? false),
-                          title: const Text('앱 로그 포함'),
-                        ),
-                        CheckboxListTile(
-                          value: _sendCopyToSelf,
-                          onChanged: (val) => setState(() => _sendCopyToSelf = val ?? false),
-                          title: const Text('나에게도 사본 보내기'),
-                        ),
-                        CheckboxListTile(
-                          value: _agree,
-                          onChanged: (val) => setState(() => _agree = val ?? false),
-                          title: const Text('개인정보 처리방침에 동의합니다.'),
-                          controlAffinity: ListTileControlAffinity.leading,
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _submitInquiry,
-                            child: const Text('문의 전송'),
-                          ),
-                        ),
-                      ],
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 18),
+                    onPressed: () => _deleteInquiry(index),
                   ),
                 ],
               ),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: Text(entry['type']),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('날짜: ${entry['date']}'),
+                        const SizedBox(height: 8),
+                        Text('내용: ${_removeTag(entry['message'], entry['type'])}'),
+                        if (entry['reply'] != null) ...[
+                          const SizedBox(height: 12),
+                          const Text('답변:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(entry['reply']),
+                        ]
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        child: const Text('닫기'),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            if (_isSending)
-              Container(
-                color: Colors.black54,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+          );
+        }),
+        const SizedBox(height: 16),
+      ],
+    ),
