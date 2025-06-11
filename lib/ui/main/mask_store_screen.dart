@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:screenshot/screenshot.dart';
@@ -9,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -108,6 +106,22 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         });
       }
     }
+  }
+
+  void _previewImage(File imageFile) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('이미지 미리보기'),
+        content: Image.file(imageFile),
+        actions: [
+          TextButton(
+            child: const Text('닫기'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
   }
 
   void _submitInquiry() async {
@@ -242,6 +256,39 @@ ${_messageController.text}
     });
   }
 
+  void _showInquiryDetail(Map<String, dynamic> entry) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(
+          children: [
+            _getTypeIcon(entry['type']),
+            const SizedBox(width: 8),
+            Text(entry['type']),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('내용: ${_removeTag(entry['message'], entry['type'])}'),
+            if (entry['reply'] != null) ...[
+              const SizedBox(height: 12),
+              const Text('답변:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(entry['reply']),
+            ]
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('닫기'),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -253,93 +300,61 @@ ${_messageController.text}
     return Screenshot(
       controller: _screenshotController,
       child: Scaffold(
-          appBar: AppBar(
-            title: Text(locale.contactUs, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
-            backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-            iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
-          ),
-          body: Stack(
-              children: [
-          Padding(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-              children: [
-          Text('${locale.appVersion}: $_appVersion', style: theme.textTheme.bodySmall),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              labelText: locale.searchInquiry,
-              prefixIcon: const Icon(Icons.search),
-              border: const OutlineInputBorder(),
-              fillColor: isDark ? Colors.grey[800] : null,
-              filled: isDark,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (inquiriesToShow.isNotEmpty)
-      Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(_searchController.text.isEmpty ? '최근 문의' : '검색 결과', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        ...List.generate(inquiriesToShow.length, (index) {
-          final entry = inquiriesToShow[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: ListTile(
-              leading: _getTypeIcon(entry['type']),
-              title: Text(entry['type']),
-              subtitle: Text(entry['date']),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+        appBar: AppBar(
+          title: Text(locale.contactUs, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
+        ),
+        body: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ListView(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 18),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: entry['message']));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('문의 내용이 복사되었습니다.')),
-                      );
-                    },
+                  Text('${locale.appVersion}: $_appVersion', style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      labelText: locale.searchInquiry,
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                      fillColor: isDark ? Colors.grey[800] : null,
+                      filled: isDark,
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, size: 18),
-                    onPressed: () => _deleteInquiry(index),
-                  ),
-                ],
-              ),
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: Text(entry['type']),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 16),
+                  if (_attachedImage != null)
+                    Row(
                       children: [
-                        Text('날짜: ${entry['date']}'),
-                        const SizedBox(height: 8),
-                        Text('내용: ${_removeTag(entry['message'], entry['type'])}'),
-                        if (entry['reply'] != null) ...[
-                          const SizedBox(height: 12),
-                          const Text('답변:', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text(entry['reply']),
-                        ]
+                        Expanded(child: Text('이미지 첨부됨: ${_attachedImage!.path.split('/').last}')),
+                        TextButton(
+                          child: const Text('미리보기'),
+                          onPressed: () => _previewImage(_attachedImage!),
+                        ),
                       ],
                     ),
-                    actions: [
-                      TextButton(
-                        child: const Text('닫기'),
-                        onPressed: () => Navigator.pop(context),
+                  const SizedBox(height: 16),
+                  ...inquiriesToShow.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final inquiry = entry.value;
+                    return ListTile(
+                      leading: _getTypeIcon(inquiry['type']),
+                      title: Text(inquiry['type']),
+                      subtitle: Text(_removeTag(inquiry['message'], inquiry['type'])),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () => _deleteInquiry(i),
                       ),
-                    ],
-                  ),
-                );
-              },
+                      onTap: () => _showInquiryDetail(inquiry),
+                    );
+                  }).toList(),
+                ],
+              ),
             ),
-          );
-        }),
-        const SizedBox(height: 16),
-      ],
-    ),
+          ],
+        ),
+      ),
+    );
+  }
+}
