@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:screenshot/screenshot.dart';
@@ -8,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -193,6 +195,7 @@ ${_messageController.text}
         throw '메일 앱 실행 실패';
       }
     } catch (e) {
+      await Clipboard.setData(ClipboardData(text: emailBody));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('메일 앱을 열 수 없습니다. 메시지를 복사해 직접 보내주세요.')),
       );
