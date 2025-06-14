@@ -22,6 +22,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _messageController = TextEditingController();
   final _searchController = TextEditingController();
+  final _emailController = TextEditingController();
 
   String _selectedType = '기능 문의';
   bool _includeLogs = false;
@@ -175,11 +176,12 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 ${_messageController.text}
 
 앱 로그 포함 여부: $_includeLogs
+이메일: ${_emailController.text}
 ''';
 
     final emailRecipients = <String>['support@example.com'];
-    if (_sendCopyToSelf) {
-      emailRecipients.add('user@example.com');
+    if (_sendCopyToSelf && _emailController.text.isNotEmpty) {
+      emailRecipients.add(_emailController.text);
     }
 
     final subject = '[문의] $_selectedType';
@@ -213,6 +215,7 @@ ${_messageController.text}
       });
 
       _messageController.clear();
+      _emailController.clear();
       _includeLogs = false;
       _attachedImage = null;
       _attachedFile = null;
@@ -325,6 +328,15 @@ ${_messageController.text}
                       fillColor: isDark ? Colors.grey[800] : null,
                       filled: isDark,
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: '이메일 (답변 받을 주소)',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
                   if (_attachedImage != null)
