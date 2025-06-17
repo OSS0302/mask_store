@@ -52,7 +52,51 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     _phoneController.text = prefs.getString('phone') ?? '';
   }
 
+  Future<void> _saveContactInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('email', _emailController.text);
+    await prefs.setString('name', _nameController.text);
+    await prefs.setString('phone', _phoneController.text);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('연락처 정보가 저장되었습니다.')),
+    );
+  }
 
+  void _clearContactInfo() {
+    _nameController.clear();
+    _emailController.clear();
+    _phoneController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('연락처 정보가 초기화되었습니다.')),
+    );
+  }
+
+  void _showPreviewDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('문의 미리 보기'),
+        content: SingleChildScrollView(
+          child: Text('''
+문의 유형: $_selectedType
+이름: ${_nameController.text}
+이메일: ${_emailController.text}
+전화번호: ${_phoneController.text}
+로그 포함: $_includeLogs
+
+내용:
+${_messageController.text}
+'''),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -69,6 +113,13 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     }
   }
 
+  void _removeAttachments() {
+    setState(() {
+      _attachedImage = null;
+      _attachedFile = null;
+    });
+  }
+
   Future<void> _submitInquiry() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agree) {
@@ -78,7 +129,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       return;
     }
 
-
+    if (_saveContactInfo) {
+      await _saveContactInfo();
+    }
 
     setState(() => _isSending = true);
 
@@ -110,7 +163,22 @@ ${_messageController.text}
       }
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('메일 앱을 열 수 없습니다. 복사하여 직접 보내주세요.')),
+        SnackBar(
+          content: Row(
+            children: [
+              const Expanded(child: Text('메일 앱을 열 수 없습니다. 내용을 복사하세요.')),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: body));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('문의 내용이 복사되었습니다.')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -189,6 +257,12 @@ ${_messageController.text}
                     label: const Text('파일 첨부'),
                     onPressed: _pickFile,
                   ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.delete),
+                    label: const Text('첨부 제거'),
+                    onPressed: _removeAttachments,
+                  ),
                 ],
               ),
               if (_attachedImage != null)
@@ -215,12 +289,27 @@ ${_messageController.text}
                 value: _saveContactInfo,
                 onChanged: (val) => setState(() => _saveContactInfo = val!),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _isSending ? null : _submitInquiry,
-                child: _isSending
-                    ? const CircularProgressIndicator()
-                    : const Text('문의 보내기'),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSending ? null : _submitInquiry,
+                      child: _isSending
+                          ? const CircularProgressIndicator()
+                          : const Text('문의 보내기'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _showPreviewDialog,
+                    child: const Text('미리 보기'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _clearContactInfo,
+                    child: const Text('초기화'),
+                  ),
+                ],
               ),
             ],
           ),
