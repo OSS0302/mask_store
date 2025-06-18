@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ 추가
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -15,6 +16,8 @@ class ContactUsScreen extends StatefulWidget {
 
 class _ContactUsScreenState extends State<ContactUsScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+
   final _emailController = TextEditingController();
   final _messageController = TextEditingController();
   final _nameController = TextEditingController();
@@ -25,7 +28,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   bool _agree = false;
   bool _sendCopyToSelf = false;
   bool _isSending = false;
-  bool _saveContactInfo = false;
+  bool _shouldSaveContactInfo = false; // ✅ 변수 이름 변경
 
   File? _attachedImage;
   PlatformFile? _attachedFile;
@@ -40,9 +43,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
   Future<void> _loadAppVersion() async {
     final info = await PackageInfo.fromPlatform();
-    setState(() {
-      _appVersion = info.version;
-    });
+    setState(() => _appVersion = info.version);
   }
 
   Future<void> _loadSavedContactInfo() async {
@@ -129,7 +130,7 @@ ${_messageController.text}
       return;
     }
 
-    if (_saveContactInfo) {
+    if (_shouldSaveContactInfo) {
       await _saveContactInfo();
     }
 
@@ -185,15 +186,18 @@ ${_messageController.text}
     setState(() {
       _isSending = false;
       _messageController.clear();
-      _emailController.clear();
-      _nameController.clear();
-      _phoneController.clear();
       _attachedImage = null;
       _attachedFile = null;
       _agree = false;
       _sendCopyToSelf = false;
       _includeLogs = false;
     });
+
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -205,6 +209,7 @@ ${_messageController.text}
         child: Form(
           key: _formKey,
           child: ListView(
+            controller: _scrollController,
             children: [
               Text('앱 버전: $_appVersion'),
               const SizedBox(height: 16),
@@ -286,8 +291,8 @@ ${_messageController.text}
               ),
               CheckboxListTile(
                 title: const Text('연락처 정보 저장'),
-                value: _saveContactInfo,
-                onChanged: (val) => setState(() => _saveContactInfo = val!),
+                value: _shouldSaveContactInfo,
+                onChanged: (val) => setState(() => _shouldSaveContactInfo = val!),
               ),
               Row(
                 children: [
