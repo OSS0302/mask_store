@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ✅ 추가
+import 'package:flutter/services.dart'; // Clipboard 기능
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -16,8 +16,6 @@ class ContactUsScreen extends StatefulWidget {
 
 class _ContactUsScreenState extends State<ContactUsScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _scrollController = ScrollController();
-
   final _emailController = TextEditingController();
   final _messageController = TextEditingController();
   final _nameController = TextEditingController();
@@ -28,7 +26,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   bool _agree = false;
   bool _sendCopyToSelf = false;
   bool _isSending = false;
-  bool _shouldSaveContactInfo = false; // ✅ 변수 이름 변경
+  bool _saveContactInfo = false;
 
   File? _attachedImage;
   PlatformFile? _attachedFile;
@@ -43,7 +41,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
   Future<void> _loadAppVersion() async {
     final info = await PackageInfo.fromPlatform();
-    setState(() => _appVersion = info.version);
+    setState(() {
+      _appVersion = info.version;
+    });
   }
 
   Future<void> _loadSavedContactInfo() async {
@@ -53,7 +53,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     _phoneController.text = prefs.getString('phone') ?? '';
   }
 
-  Future<void> _saveContactInfo() async {
+  Future<void> _saveContactInfoToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('email', _emailController.text);
     await prefs.setString('name', _nameController.text);
@@ -99,6 +99,19 @@ ${_messageController.text}
     );
   }
 
+  String _getHelpTextForType(String type) {
+    switch (type) {
+      case '기능 문의':
+        return '궁금한 기능이나 요청할 내용을 작성해주세요.';
+      case '오류 신고':
+        return '앱에서 발생한 문제를 자세히 설명해주세요.';
+      case '개선 제안':
+        return '개선하고 싶은 점이나 아이디어를 알려주세요.';
+      default:
+        return '기타 문의 사항을 자유롭게 작성해주세요.';
+    }
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
@@ -121,6 +134,13 @@ ${_messageController.text}
     });
   }
 
+  Future<void> _saveInquiryHistory(String content) async {
+    final prefs = await SharedPreferences.getInstance();
+    final history = prefs.getStringList('inquiry_history') ?? [];
+    history.add('${DateTime.now()}\n$content');
+    await prefs.setStringList('inquiry_history', history);
+  }
+
   Future<void> _submitInquiry() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agree) {
@@ -130,8 +150,22 @@ ${_messageController.text}
       return;
     }
 
-    if (_shouldSaveContactInfo) {
-      await _saveContactInfo();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('전송 확인'),
+        content: const Text('해당 내용을 전송하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('전송')),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    if (_saveContactInfo) {
+      await _saveContactInfoToPrefs();
     }
 
     setState(() => _isSending = true);
@@ -149,6 +183,8 @@ ${_messageController.text}
 ${_messageController.text}
 ''';
 
+    await _saveInquiryHistory(body);
+
     final recipients = ['support@example.com'];
     if (_sendCopyToSelf && _emailController.text.isNotEmpty) {
       recipients.add(_emailController.text);
@@ -160,26 +196,12 @@ ${_messageController.text}
 
     try {
       if (!await launchUrl(mailtoUri)) {
-        throw '메일 앱을 열 수 없습니다';
+        throw '메일 앱을 열 수 없습니다.';
       }
     } catch (_) {
+      Clipboard.setData(ClipboardData(text: body));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Expanded(child: Text('메일 앱을 열 수 없습니다. 내용을 복사하세요.')),
-              IconButton(
-                icon: const Icon(Icons.copy),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: body));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('문의 내용이 복사되었습니다.')),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
+        const SnackBar(content: Text('메일 앱을 열 수 없습니다. 문의 내용이 복사되었습니다.')),
       );
     }
 
@@ -192,12 +214,6 @@ ${_messageController.text}
       _sendCopyToSelf = false;
       _includeLogs = false;
     });
-
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOut,
-    );
   }
 
   @override
@@ -209,7 +225,6 @@ ${_messageController.text}
         child: Form(
           key: _formKey,
           child: ListView(
-            controller: _scrollController,
             children: [
               Text('앱 버전: $_appVersion'),
               const SizedBox(height: 16),
@@ -221,18 +236,22 @@ ${_messageController.text}
                     .toList(),
                 onChanged: (val) => setState(() => _selectedType = val!),
               ),
-              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  _getHelpTextForType(_selectedType),
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: '이름'),
               ),
-              const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(labelText: '이메일'),
               ),
-              const SizedBox(height: 16),
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
@@ -291,8 +310,8 @@ ${_messageController.text}
               ),
               CheckboxListTile(
                 title: const Text('연락처 정보 저장'),
-                value: _shouldSaveContactInfo,
-                onChanged: (val) => setState(() => _shouldSaveContactInfo = val!),
+                value: _saveContactInfo,
+                onChanged: (val) => setState(() => _saveContactInfo = val!),
               ),
               Row(
                 children: [
