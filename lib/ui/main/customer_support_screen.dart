@@ -68,6 +68,98 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     });
   }
 
+  void _showEditDialog(Map<String, dynamic> inquiry) {
+    final titleController = TextEditingController(text: inquiry['title']);
+    final contentController = TextEditingController(text: inquiry['content']);
+    String selectedCategory = inquiry['category'];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('문의 수정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: titleController, decoration: const InputDecoration(labelText: '제목')),
+            TextField(controller: contentController, decoration: const InputDecoration(labelText: '내용')),
+            DropdownButton<String>(
+              value: selectedCategory,
+              items: ['일반 문의', '주문', '배송', '환불', '기타']
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    selectedCategory = value;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                inquiry['title'] = titleController.text;
+                inquiry['content'] = contentController.text;
+                inquiry['category'] = selectedCategory;
+                inquiry['timestamp'] = DateTime.now().toIso8601String();
+              });
+              saveInquiries();
+              Navigator.pop(context);
+            },
+            child: const Text('수정 완료'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInquiryDialog() {
+    final titleController = TextEditingController();
+    final contentController = TextEditingController();
+    String selectedCategory = '일반 문의';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('문의하기'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: titleController, decoration: const InputDecoration(labelText: '제목')),
+            TextField(controller: contentController, decoration: const InputDecoration(labelText: '내용')),
+            DropdownButton<String>(
+              value: selectedCategory,
+              items: ['일반 문의', '주문', '배송', '환불', '기타']
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    selectedCategory = value;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          TextButton(
+            onPressed: () {
+              addInquiry(titleController.text, contentController.text, selectedCategory);
+              Navigator.pop(context);
+            },
+            child: const Text('등록'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredList = inquiryList
@@ -131,9 +223,18 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                         ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => deleteInquiry(inquiry['id']),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _showEditDialog(inquiry),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => deleteInquiry(inquiry['id']),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -148,49 +249,6 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
       ),
     );
   }
-
-  void _showInquiryDialog() {
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-    String selectedCategory = '일반 문의';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('문의하기'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: titleController, decoration: const InputDecoration(labelText: '제목')),
-            TextField(controller: contentController, decoration: const InputDecoration(labelText: '내용')),
-            DropdownButton<String>(
-              value: selectedCategory,
-              items: ['일반 문의', '주문', '배송', '환불', '기타']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    selectedCategory = value;
-                  });
-                }
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
-          TextButton(
-            onPressed: () {
-              addInquiry(titleController.text, contentController.text, selectedCategory);
-              Navigator.pop(context);
-            },
-            child: const Text('등록'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class InquirySearchDelegate extends SearchDelegate {
@@ -198,17 +256,22 @@ class InquirySearchDelegate extends SearchDelegate {
   InquirySearchDelegate(this.inquiries);
 
   @override
-  List<Widget>? buildActions(BuildContext context) => [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
+  List<Widget>? buildActions(BuildContext context) =>
+      [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
 
   @override
-  Widget? buildLeading(BuildContext context) => IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, null));
+  Widget? buildLeading(BuildContext context) =>
+      IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, null));
 
   @override
   Widget buildResults(BuildContext context) => Container();
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final results = inquiries.where((inq) => inq['title'].contains(query)).toList();
+    final results = inquiries
+        .where((inq) => inq['title'].contains(query))
+        .toList();
+
     return ListView(
       children: results.map((inq) => ListTile(title: Text(inq['title']))).toList(),
     );
