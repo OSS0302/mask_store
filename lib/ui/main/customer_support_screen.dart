@@ -14,6 +14,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   List<Map<String, dynamic>> inquiryList = [];
   String searchQuery = '';
   String sortOption = '최신순';
+  String categoryFilter = '전체';
 
   @override
   void initState() {
@@ -58,6 +59,27 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     saveInquiries();
   }
 
+  void clearAllInquiries() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('전체 삭제'),
+        content: const Text('정말로 모든 문의를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          TextButton(
+            onPressed: () {
+              setState(() => inquiryList.clear());
+              saveInquiries();
+              Navigator.pop(context);
+            },
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void sortInquiries() {
     setState(() {
       if (sortOption == '최신순') {
@@ -89,9 +111,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                   .toList(),
               onChanged: (value) {
                 if (value != null) {
-                  setState(() {
-                    selectedCategory = value;
-                  });
+                  setState(() => selectedCategory = value);
                 }
               },
             ),
@@ -138,9 +158,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                   .toList(),
               onChanged: (value) {
                 if (value != null) {
-                  setState(() {
-                    selectedCategory = value;
-                  });
+                  setState(() => selectedCategory = value);
                 }
               },
             ),
@@ -160,10 +178,33 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     );
   }
 
+  void _showInquiryDetail(Map<String, dynamic> inquiry) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(inquiry['title']),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("내용: ${inquiry['content']}"),
+            Text("카테고리: ${inquiry['category']}"),
+            Text("작성일: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}"),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredList = inquiryList
-        .where((inquiry) => inquiry['title'].contains(searchQuery))
+        .where((inquiry) =>
+    (inquiry['title'].contains(searchQuery) || inquiry['content'].contains(searchQuery)) &&
+        (categoryFilter == '전체' || inquiry['category'] == categoryFilter))
         .toList();
 
     return Scaffold(
@@ -179,26 +220,45 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.delete_forever),
+            onPressed: clearAllInquiries,
+            tooltip: '전체 삭제',
+          )
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: DropdownButton<String>(
-              value: sortOption,
-              items: ['최신순', '오래된 순']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    sortOption = value;
-                    sortInquiries();
-                  });
-                }
-              },
-            ),
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: sortOption,
+                items: ['최신순', '오래된 순']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      sortOption = value;
+                      sortInquiries();
+                    });
+                  }
+                },
+              ),
+              const SizedBox(width: 20),
+              DropdownButton<String>(
+                value: categoryFilter,
+                items: ['전체', '일반 문의', '주문', '배송', '환불', '기타']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => categoryFilter = value);
+                  }
+                },
+              ),
+            ],
           ),
           Expanded(
             child: filteredList.isEmpty
@@ -211,17 +271,11 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                   margin: const EdgeInsets.all(8.0),
                   elevation: 3,
                   child: ListTile(
+                    onTap: () => _showInquiryDetail(inquiry),
                     title: Text(inquiry['title']),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(inquiry['content']),
-                        const SizedBox(height: 5),
-                        Text(
-                          '카테고리: ${inquiry['category']} | 날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}',
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                        ),
-                      ],
+                    subtitle: Text(
+                      '카테고리: ${inquiry['category']} | 날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -244,7 +298,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showInquiryDialog(),
+        onPressed: _showInquiryDialog,
         child: const Icon(Icons.add),
       ),
     );
@@ -269,11 +323,14 @@ class InquirySearchDelegate extends SearchDelegate {
   @override
   Widget buildSuggestions(BuildContext context) {
     final results = inquiries
-        .where((inq) => inq['title'].contains(query))
+        .where((inq) =>
+    inq['title'].contains(query) || inq['content'].contains(query))
         .toList();
 
     return ListView(
-      children: results.map((inq) => ListTile(title: Text(inq['title']))).toList(),
+      children: results
+          .map((inq) => ListTile(title: Text(inq['title'])))
+          .toList(),
     );
   }
 }
