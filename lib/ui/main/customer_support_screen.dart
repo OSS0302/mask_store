@@ -8,7 +8,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
-
+/// Customer Support Inquiry Screen with advanced features:
+/// 1. Category & Status filters
+/// 2. Edit / Delete / Detail view
+/// 3. CSV export (share)
+/// 4. Optional image attachment per inquiry
+/// 5. Enhanced search (title + content)
 class CustomerSupportScreen extends StatefulWidget {
   const CustomerSupportScreen({Key? key}) : super(key: key);
 
@@ -24,8 +29,9 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   String categoryFilter = '전체';
   String statusFilter = '전체';
 
+  // 검색창 query 는 SearchDelegate 내부에서 관리 (검색 버튼 클릭 시).
 
-
+  /// ===== LIFECYCLE =====
   @override
   void initState() {
     super.initState();
@@ -49,6 +55,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     await prefs.setString('inquiries', json.encode(inquiryList));
   }
 
+  /// ===== CRUD =====
   void addInquiry({
     required String title,
     required String content,
@@ -115,6 +122,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     );
   }
 
+  /// ===== SORT & FILTER =====
   void sortInquiries() {
     if (sortOption == '최신순') {
       inquiryList.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
@@ -123,6 +131,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     }
   }
 
+  /// ===== CSV EXPORT =====
   Future<void> exportToCSV() async {
     const headers = ['제목', '내용', '카테고리', '상태', '작성일'];
     final rows = inquiryList.map((inq) => [
@@ -146,6 +155,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     Share.shareXFiles([XFile(file.path)], text: '문의 내역 CSV 파일입니다');
   }
 
+  /// ===== UI DIALOGS =====
   void _openAddDialog() {
     final titleCtrl = TextEditingController();
     final contentCtrl = TextEditingController();
@@ -346,6 +356,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     );
   }
 
+  /// ===== BUILD =====
   @override
   Widget build(BuildContext context) {
     // Filters applied list
@@ -459,6 +470,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   }
 }
 
+/// SearchDelegate searching both title and content.
 class InquirySearchDelegate extends SearchDelegate {
   final List<Map<String, dynamic>> inquiries;
   InquirySearchDelegate(this.inquiries);
