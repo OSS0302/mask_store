@@ -1,19 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:csv/csv.dart';
 
-/// Customer Support Inquiry Screen with advanced features:
-/// 1. Category & Status filters
-/// 2. Edit / Delete / Detail view
-/// 3. CSV export (share)
-/// 4. Optional image attachment per inquiry
-/// 5. Enhanced search (title + content)
 class CustomerSupportScreen extends StatefulWidget {
   const CustomerSupportScreen({Key? key}) : super(key: key);
 
@@ -22,29 +16,25 @@ class CustomerSupportScreen extends StatefulWidget {
 }
 
 class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
-  final ImagePicker _picker = ImagePicker();
-
   List<Map<String, dynamic>> inquiryList = [];
+  String searchQuery = '';
   String sortOption = '최신순';
-  String categoryFilter = '전체';
   String statusFilter = '전체';
 
-  // 검색창 query 는 SearchDelegate 내부에서 관리 (검색 버튼 클릭 시).
+  final ImagePicker _picker = ImagePicker();
 
-  /// ===== LIFECYCLE =====
   @override
   void initState() {
     super.initState();
     fetchInquiries();
   }
 
-  /// ===== PERSISTENCE =====
   Future<void> fetchInquiries() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? saved = prefs.getString('inquiries');
-    if (saved != null) {
+    final String? inquiriesJson = prefs.getString('inquiries');
+    if (inquiriesJson != null) {
       setState(() {
-        inquiryList = List<Map<String, dynamic>>.from(json.decode(saved));
+        inquiryList = List<Map<String, dynamic>>.from(json.decode(inquiriesJson));
         sortInquiries();
       });
     }
@@ -52,320 +42,96 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
   Future<void> saveInquiries() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('inquiries', json.encode(inquiryList));
+    prefs.setString('inquiries', json.encode(inquiryList));
   }
 
-  /// ===== CRUD =====
-  void addInquiry({
-    required String title,
-    required String content,
-    required String category,
-    required String status,
-    String? imagePath,
-  }) {
+  void addInquiry(String title, String content, String category, List<String> images) {
     setState(() {
       inquiryList.add({
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'title': title,
         'content': content,
         'category': category,
-        'status': status,
-        'imagePath': imagePath,
+        'status': '대기',
         'timestamp': DateTime.now().toIso8601String(),
+        'images': images,
       });
       sortInquiries();
     });
     saveInquiries();
   }
 
-  void updateInquiry(Map<String, dynamic> inquiry, {
-    required String title,
-    required String content,
-    required String category,
-    required String status,
-    String? imagePath,
-  }) {
+  void deleteInquiry(String id) {
     setState(() {
-      inquiry['title'] = title;
-      inquiry['content'] = content;
-      inquiry['category'] = category;
-      inquiry['status'] = status;
-      inquiry['imagePath'] = imagePath;
-      inquiry['timestamp'] = DateTime.now().toIso8601String();
+      inquiryList.removeWhere((inquiry) => inquiry['id'] == id);
     });
     saveInquiries();
   }
 
-  void deleteInquiry(String id) {
-    setState(() => inquiryList.removeWhere((inq) => inq['id'] == id));
+  void updateStatus(String id, String newStatus) {
+    setState(() {
+      final index = inquiryList.indexWhere((inquiry) => inquiry['id'] == id);
+      if (index != -1) {
+        inquiryList[index]['status'] = newStatus;
+      }
+    });
     saveInquiries();
   }
 
-  void clearAllInquiries() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('전체 삭제'),
-        content: const Text('모든 문의를 삭제하시겠습니까? 되돌릴 수 없습니다.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
-          TextButton(
-            onPressed: () {
-              setState(() => inquiryList.clear());
-              saveInquiries();
-              Navigator.pop(context);
-            },
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// ===== SORT & FILTER =====
   void sortInquiries() {
-    if (sortOption == '최신순') {
-      inquiryList.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
-    } else {
-      inquiryList.sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
-    }
-  }
-
-  /// ===== CSV EXPORT =====
-  Future<void> exportToCSV() async {
-    const headers = ['제목', '내용', '카테고리', '상태', '작성일'];
-    final rows = inquiryList.map((inq) => [
-      inq['title'],
-      inq['content'],
-      inq['category'],
-      inq['status'],
-      inq['timestamp'],
-    ]).toList();
-
-    final csvBuffer = StringBuffer();
-    csvBuffer.writeln(headers.join(','));
-    for (var row in rows) {
-      csvBuffer.writeln(row.map((e) => '"${e.toString().replaceAll('"', '""')}"').join(','));
-    }
-
-    final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/inquiries_${DateTime.now().millisecondsSinceEpoch}.csv');
-    await file.writeAsString(csvBuffer.toString(), flush: true);
-
-    Share.shareXFiles([XFile(file.path)], text: '문의 내역 CSV 파일입니다');
-  }
-
-  /// ===== UI DIALOGS =====
-  void _openAddDialog() {
-    final titleCtrl = TextEditingController();
-    final contentCtrl = TextEditingController();
-    String category = '일반 문의';
-    String status = '대기';
-    String? imagePath;
-
-    Future<void> pickImage() async {
-      final picked = await _picker.pickImage(source: ImageSource.gallery);
-      if (picked != null) {
-        setState(() => imagePath = picked.path);
+    setState(() {
+      if (sortOption == '최신순') {
+        inquiryList.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
+      } else {
+        inquiryList.sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
       }
+    });
+  }
+
+  Future<void> exportCSV() async {
+    List<List<String>> csvData = [
+      ['ID', '제목', '내용', '카테고리', '상태', '날짜']
+    ];
+    for (var inquiry in inquiryList) {
+      csvData.add([
+        inquiry['id'],
+        inquiry['title'],
+        inquiry['content'],
+        inquiry['category'],
+        inquiry['status'],
+        inquiry['timestamp'],
+      ]);
     }
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setStateDialog) => AlertDialog(
-          title: const Text('문의하기'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: '제목')),
-                TextField(controller: contentCtrl, decoration: const InputDecoration(labelText: '내용')),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: category,
-                        isExpanded: true,
-                        items: ['일반 문의', '주문', '배송', '환불', '기타']
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (v) => setStateDialog(() => category = v ?? category),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: status,
-                        isExpanded: true,
-                        items: ['대기', '진행중', '완료']
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (v) => setStateDialog(() => status = v ?? status),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.image),
-                      label: const Text('이미지 선택'),
-                      onPressed: pickImage,
-                    ),
-                    if (imagePath != null) const SizedBox(width: 6),
-                    if (imagePath != null) const Text('선택됨'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-            ElevatedButton(
-              onPressed: () {
-                addInquiry(
-                  title: titleCtrl.text,
-                  content: contentCtrl.text,
-                  category: category,
-                  status: status,
-                  imagePath: imagePath,
-                );
-                Navigator.pop(ctx);
-              },
-              child: const Text('등록'),
-            ),
-          ],
-        ),
-      ),
-    );
+    String csv = const ListToCsvConverter().convert(csvData);
+    final directory = await getApplicationDocumentsDirectory();
+    final path = '${directory.path}/inquiries.csv';
+    final file = File(path);
+    await file.writeAsString(csv);
+    final xfile = XFile(path);
+    await Share.shareXFiles([xfile], text: '문의 내역 CSV 파일입니다.');
   }
 
-  void _openEditDialog(Map<String, dynamic> inquiry) {
-    final titleCtrl = TextEditingController(text: inquiry['title']);
-    final contentCtrl = TextEditingController(text: inquiry['content']);
-    String category = inquiry['category'];
-    String status = inquiry['status'];
-    String? imagePath = inquiry['imagePath'];
-
-    Future<void> pickImage() async {
-      final picked = await _picker.pickImage(source: ImageSource.gallery);
-      if (picked != null) {
-        setState(() => imagePath = picked.path);
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setStateDialog) => AlertDialog(
-          title: const Text('문의 수정'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: '제목')),
-                TextField(controller: contentCtrl, decoration: const InputDecoration(labelText: '내용')),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: category,
-                        isExpanded: true,
-                        items: ['일반 문의', '주문', '배송', '환불', '기타']
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (v) => setStateDialog(() => category = v ?? category),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: status,
-                        isExpanded: true,
-                        items: ['대기', '진행중', '완료']
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (v) => setStateDialog(() => status = v ?? status),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.image),
-                      label: const Text('이미지 변경'),
-                      onPressed: pickImage,
-                    ),
-                    if (imagePath != null) const SizedBox(width: 6),
-                    if (imagePath != null) const Text('변경됨'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-            ElevatedButton(
-              onPressed: () {
-                updateInquiry(
-                  inquiry,
-                  title: titleCtrl.text,
-                  content: contentCtrl.text,
-                  category: category,
-                  status: status,
-                  imagePath: imagePath,
-                );
-                Navigator.pop(ctx);
-              },
-              child: const Text('저장'),
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> backupToFile() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/backup.json');
+    await file.writeAsString(jsonEncode(inquiryList));
+    final xfile = XFile(file.path);
+    await Share.shareXFiles([xfile], text: '문의 내역 백업 파일입니다.');
   }
 
-  void _openDetailDialog(Map<String, dynamic> inquiry) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(inquiry['title']),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (inquiry['imagePath'] != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Image.file(File(inquiry['imagePath']), height: 150),
-                ),
-              Text('내용: ${inquiry['content']}'),
-              const SizedBox(height: 6),
-              Text('카테고리: ${inquiry['category']}'),
-              Text('상태: ${inquiry['status']}'),
-              Text('작성일: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}'),
-            ],
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기'))],
-      ),
-    );
+  Future<List<String>> pickImages() async {
+    final List<XFile>? picked = await _picker.pickMultiImage();
+    return picked?.map((x) => x.path).toList() ?? [];
   }
 
-  /// ===== BUILD =====
   @override
   Widget build(BuildContext context) {
-    // Filters applied list
-    final filtered = inquiryList.where((inq) {
-      final searchDelegateActive = false; // placeholder, handled by SearchDelegate separately
-      if (searchDelegateActive) return true;
-      final matchesCategory = categoryFilter == '전체' || inq['category'] == categoryFilter;
-      final matchesStatus = statusFilter == '전체' || inq['status'] == statusFilter;
-      return matchesCategory && matchesStatus;
+    List<Map<String, dynamic>> filteredList = inquiryList.where((inquiry) {
+      final query = searchQuery.toLowerCase();
+      return (statusFilter == '전체' || inquiry['status'] == statusFilter) &&
+          (inquiry['title'].toLowerCase().contains(query) ||
+              inquiry['content'].toLowerCase().contains(query) ||
+              inquiry['category'].toLowerCase().contains(query));
     }).toList();
 
     return Scaffold(
@@ -375,89 +141,99 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
           IconButton(icon: const Icon(Icons.search), onPressed: () {
             showSearch(context: context, delegate: InquirySearchDelegate(inquiryList));
           }),
-          IconButton(icon: const Icon(Icons.download), tooltip: 'CSV 내보내기', onPressed: exportToCSV),
-          IconButton(icon: const Icon(Icons.delete_forever), tooltip: '전체 삭제', onPressed: clearAllInquiries),
+          IconButton(icon: const Icon(Icons.download), onPressed: exportCSV),
+          IconButton(icon: const Icon(Icons.backup), onPressed: backupToFile),
+          IconButton(icon: const Icon(Icons.delete_forever), onPressed: () {
+            showDialog(context: context, builder: (ctx) => AlertDialog(
+              title: const Text('전체 삭제'),
+              content: const Text('정말 전체 삭제하시겠습니까?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+                TextButton(onPressed: () {
+                  setState(() => inquiryList.clear());
+                  saveInquiries();
+                  Navigator.pop(ctx);
+                }, child: const Text('삭제')),
+              ],
+            ));
+          })
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: sortOption,
-                    isExpanded: true,
-                    items: ['최신순', '오래된 순']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) setState(() { sortOption = v; sortInquiries(); });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: categoryFilter,
-                    isExpanded: true,
-                    items: ['전체', '일반 문의', '주문', '배송', '환불', '기타']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => categoryFilter = v ?? categoryFilter),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: statusFilter,
-                    isExpanded: true,
-                    items: ['전체', '대기', '진행중', '완료']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => statusFilter = v ?? statusFilter),
-                  ),
-                ),
-              ],
-            ),
+          Row(
+            children: [
+              const SizedBox(width: 10),
+              DropdownButton<String>(
+                value: sortOption,
+                items: ['최신순', '오래된 순']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      sortOption = value;
+                      sortInquiries();
+                    });
+                  }
+                },
+              ),
+              const SizedBox(width: 20),
+              DropdownButton<String>(
+                value: statusFilter,
+                items: ['전체', '대기', '진행중', '완료']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) => setState(() => statusFilter = value!),
+              ),
+            ],
           ),
           Expanded(
-            child: filtered.isEmpty ? const Center(child: Text('문의 내역이 없습니다.')) : ListView.builder(
-              itemCount: filtered.length,
-              itemBuilder: (_, idx) {
-                final inq = filtered[idx];
-                Color statusColor;
-                switch (inq['status']) {
-                  case '진행중':
-                    statusColor = Colors.orange;
-                    break;
-                  case '완료':
-                    statusColor = Colors.green;
-                    break;
-                  default:
-                    statusColor = Colors.grey;
-                }
+            child: filteredList.isEmpty
+                ? const Center(child: Text('문의 내역이 없습니다.'))
+                : ListView.builder(
+              itemCount: filteredList.length,
+              itemBuilder: (context, index) {
+                final inquiry = filteredList[index];
                 return Card(
                   margin: const EdgeInsets.all(8.0),
+                  elevation: 3,
                   child: ListTile(
-                    leading: inq['imagePath'] != null ? Image.file(File(inq['imagePath']), width: 40, height: 40, fit: BoxFit.cover) : null,
-                    title: Text(inq['title']),
-                    subtitle: Row(
+                    title: Text(inquiry['title']),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(width: 8, height: 8, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
-                        const SizedBox(width: 4),
-                        Text('${inq['status']} · ${inq['category']}'),
+                        Text(inquiry['content']),
+                        Text('카테고리: ${inquiry['category']} | 상태: ${inquiry['status']}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        Text('날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}', style: TextStyle(fontSize: 12)),
+                        if (inquiry['images'] != null && inquiry['images'].isNotEmpty)
+                          SizedBox(
+                            height: 80,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: (inquiry['images'] as List<String>).map((path) => Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: GestureDetector(
+                                  onTap: () => showDialog(context: context, builder: (_) => Dialog(child: Image.file(File(path)))),
+                                  child: Image.file(File(path), width: 80, height: 80, fit: BoxFit.cover),
+                                ),
+                              )).toList(),
+                            ),
+                          )
                       ],
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    trailing: Column(
                       children: [
-                        IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _openEditDialog(inq)),
-                        IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => deleteInquiry(inq['id'])),
+                        DropdownButton<String>(
+                          value: inquiry['status'],
+                          onChanged: (val) => updateStatus(inquiry['id'], val!),
+                          items: ['대기', '진행중', '완료']
+                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                              .toList(),
+                        ),
+                        IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => deleteInquiry(inquiry['id'])),
                       ],
                     ),
-                    onTap: () => _openDetailDialog(inq),
                   ),
                 );
               },
@@ -465,12 +241,68 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(onPressed: _openAddDialog, child: const Icon(Icons.add)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showInquiryDialog(),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showInquiryDialog() {
+    final titleController = TextEditingController();
+    final contentController = TextEditingController();
+    String selectedCategory = '일반 문의';
+    List<String> selectedImages = [];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('문의하기'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: titleController, decoration: const InputDecoration(labelText: '제목')),
+                TextField(controller: contentController, decoration: const InputDecoration(labelText: '내용')),
+                DropdownButton<String>(
+                  value: selectedCategory,
+                  items: ['일반 문의', '주문', '배송', '환불', '기타']
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (value) => setStateDialog(() => selectedCategory = value!),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.image),
+                  label: const Text('이미지 선택'),
+                  onPressed: () async {
+                    final imgs = await pickImages();
+                    setStateDialog(() => selectedImages = imgs);
+                  },
+                ),
+                Wrap(
+                  spacing: 5,
+                  children: selectedImages.map((e) => Image.file(File(e), width: 50, height: 50)).toList(),
+                )
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+            TextButton(
+              onPressed: () {
+                addInquiry(titleController.text, contentController.text, selectedCategory, selectedImages);
+                Navigator.pop(context);
+              },
+              child: const Text('등록'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-/// SearchDelegate searching both title and content.
 class InquirySearchDelegate extends SearchDelegate {
   final List<Map<String, dynamic>> inquiries;
   InquirySearchDelegate(this.inquiries);
@@ -486,7 +318,12 @@ class InquirySearchDelegate extends SearchDelegate {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final results = inquiries.where((inq) => inq['title'].contains(query) || inq['content'].contains(query)).toList();
+    final results = inquiries.where((inq) =>
+    inq['title'].toLowerCase().contains(query.toLowerCase()) ||
+        inq['content'].toLowerCase().contains(query.toLowerCase()) ||
+        inq['category'].toLowerCase().contains(query.toLowerCase())
+    ).toList();
+
     return ListView(
       children: results.map((inq) => ListTile(title: Text(inq['title']))).toList(),
     );
