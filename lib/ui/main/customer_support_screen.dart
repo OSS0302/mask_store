@@ -20,7 +20,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   String searchQuery = '';
   String sortOption = '최신순';
   String statusFilter = '전체';
-
+  String categoryFilter = '전체';
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -55,6 +55,8 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         'status': '대기',
         'timestamp': DateTime.now().toIso8601String(),
         'images': images,
+        'favorite': false,
+        'memo': '',
       });
       sortInquiries();
     });
@@ -78,6 +80,16 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     saveInquiries();
   }
 
+  void toggleFavorite(String id) {
+    setState(() {
+      final index = inquiryList.indexWhere((inquiry) => inquiry['id'] == id);
+      if (index != -1) {
+        inquiryList[index]['favorite'] = !(inquiryList[index]['favorite'] ?? false);
+      }
+    });
+    saveInquiries();
+  }
+
   void sortInquiries() {
     setState(() {
       if (sortOption == '최신순') {
@@ -90,7 +102,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
   Future<void> exportCSV() async {
     List<List<String>> csvData = [
-      ['ID', '제목', '내용', '카테고리', '상태', '날짜']
+      ['ID', '제목', '내용', '카테고리', '상태', '날짜', '이미지수', '즐겨찾기']
     ];
     for (var inquiry in inquiryList) {
       csvData.add([
@@ -100,6 +112,8 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         inquiry['category'],
         inquiry['status'],
         inquiry['timestamp'],
+        (inquiry['images'] as List<String>).length.toString(),
+        inquiry['favorite'].toString()
       ]);
     }
     String csv = const ListToCsvConverter().convert(csvData);
@@ -129,6 +143,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     List<Map<String, dynamic>> filteredList = inquiryList.where((inquiry) {
       final query = searchQuery.toLowerCase();
       return (statusFilter == '전체' || inquiry['status'] == statusFilter) &&
+          (categoryFilter == '전체' || inquiry['category'] == categoryFilter) &&
           (inquiry['title'].toLowerCase().contains(query) ||
               inquiry['content'].toLowerCase().contains(query) ||
               inquiry['category'].toLowerCase().contains(query));
@@ -143,20 +158,6 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
           }),
           IconButton(icon: const Icon(Icons.download), onPressed: exportCSV),
           IconButton(icon: const Icon(Icons.backup), onPressed: backupToFile),
-          IconButton(icon: const Icon(Icons.delete_forever), onPressed: () {
-            showDialog(context: context, builder: (ctx) => AlertDialog(
-              title: const Text('전체 삭제'),
-              content: const Text('정말 전체 삭제하시겠습니까?'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-                TextButton(onPressed: () {
-                  setState(() => inquiryList.clear());
-                  saveInquiries();
-                  Navigator.pop(ctx);
-                }, child: const Text('삭제')),
-              ],
-            ));
-          })
         ],
       ),
       body: Column(
@@ -186,6 +187,14 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                     .toList(),
                 onChanged: (value) => setState(() => statusFilter = value!),
               ),
+              const SizedBox(width: 20),
+              DropdownButton<String>(
+                value: categoryFilter,
+                items: ['전체', '일반 문의', '주문', '배송', '환불', '기타']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) => setState(() => categoryFilter = value!),
+              ),
             ],
           ),
           Expanded(
@@ -199,13 +208,28 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                   margin: const EdgeInsets.all(8.0),
                   elevation: 3,
                   child: ListTile(
+                    leading: IconButton(
+                      icon: Icon(
+                        inquiry['favorite'] == true ? Icons.star : Icons.star_border,
+                        color: inquiry['favorite'] == true ? Colors.amber : Colors.grey,
+                      ),
+                      onPressed: () => toggleFavorite(inquiry['id']),
+                    ),
                     title: Text(inquiry['title']),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(inquiry['content']),
+                        TextField(
+                          decoration: const InputDecoration(labelText: '메모'),
+                          controller: TextEditingController(text: inquiry['memo']),
+                          onChanged: (val) {
+                            inquiry['memo'] = val;
+                            saveInquiries();
+                          },
+                        ),
                         Text('카테고리: ${inquiry['category']} | 상태: ${inquiry['status']}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                        Text('날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}', style: TextStyle(fontSize: 12)),
+                        Text('날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}', style: const TextStyle(fontSize: 12)),
                         if (inquiry['images'] != null && inquiry['images'].isNotEmpty)
                           SizedBox(
                             height: 80,
