@@ -21,6 +21,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   String sortOption = '최신순';
   String statusFilter = '전체';
   String categoryFilter = '전체';
+  bool filterWithImages = false;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -46,28 +47,48 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   }
 
   void addInquiry(String title, String content, String category, List<String> images) {
+    final newInquiry = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': title,
+      'content': content,
+      'category': category,
+      'status': '대기',
+      'timestamp': DateTime.now().toIso8601String(),
+      'images': images,
+      'favorite': false,
+      'memo': '',
+    };
+
     setState(() {
-      inquiryList.add({
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'title': title,
-        'content': content,
-        'category': category,
-        'status': '대기',
-        'timestamp': DateTime.now().toIso8601String(),
-        'images': images,
-        'favorite': false,
-        'memo': '',
-      });
-      sortInquiries();
+      if (sortOption == '최신순') {
+        inquiryList.insert(0, newInquiry);
+      } else {
+        inquiryList.add(newInquiry);
+        sortInquiries();
+      }
     });
+
     saveInquiries();
   }
 
-  void deleteInquiry(String id) {
-    setState(() {
-      inquiryList.removeWhere((inquiry) => inquiry['id'] == id);
-    });
-    saveInquiries();
+  void deleteInquiry(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('삭제 확인'),
+        content: const Text('정말로 이 문의를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('삭제')),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      setState(() {
+        inquiryList.removeWhere((inquiry) => inquiry['id'] == id);
+      });
+      saveInquiries();
+    }
   }
 
   void updateStatus(String id, String newStatus) {
@@ -94,8 +115,12 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     setState(() {
       if (sortOption == '최신순') {
         inquiryList.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
-      } else {
+      } else if (sortOption == '오래된 순') {
         inquiryList.sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
+      } else if (sortOption == '제목순') {
+        inquiryList.sort((a, b) => a['title'].compareTo(b['title']));
+      } else if (sortOption == '카테고리순') {
+        inquiryList.sort((a, b) => a['category'].compareTo(b['category']));
       }
     });
   }
@@ -138,12 +163,18 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     return picked?.map((x) => x.path).toList() ?? [];
   }
 
+  int countStatus(String status) {
+    return inquiryList.where((inq) => inq['status'] == status).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredList = inquiryList.where((inquiry) {
       final query = searchQuery.toLowerCase();
+      final matchesImage = !filterWithImages || (inquiry['images'] != null && (inquiry['images'] as List).isNotEmpty);
       return (statusFilter == '전체' || inquiry['status'] == statusFilter) &&
           (categoryFilter == '전체' || inquiry['category'] == categoryFilter) &&
+          matchesImage &&
           (inquiry['title'].toLowerCase().contains(query) ||
               inquiry['content'].toLowerCase().contains(query) ||
               inquiry['category'].toLowerCase().contains(query));
@@ -162,12 +193,24 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 12),
+            child: Row(
+              children: [
+                Text('대기: ${countStatus("대기")}'),
+                const SizedBox(width: 10),
+                Text('진행중: ${countStatus("진행중")}'),
+                const SizedBox(width: 10),
+                Text('완료: ${countStatus("완료")}'),
+              ],
+            ),
+          ),
           Row(
             children: [
               const SizedBox(width: 10),
               DropdownButton<String>(
                 value: sortOption,
-                items: ['최신순', '오래된 순']
+                items: ['최신순', '오래된 순', '제목순', '카테고리순']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (value) {
@@ -179,7 +222,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                   }
                 },
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 10),
               DropdownButton<String>(
                 value: statusFilter,
                 items: ['전체', '대기', '진행중', '완료']
@@ -187,7 +230,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                     .toList(),
                 onChanged: (value) => setState(() => statusFilter = value!),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 10),
               DropdownButton<String>(
                 value: categoryFilter,
                 items: ['전체', '일반 문의', '주문', '배송', '환불', '기타']
@@ -195,133 +238,99 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                     .toList(),
                 onChanged: (value) => setState(() => categoryFilter = value!),
               ),
+              const SizedBox(width: 10),
+              Row(
+                children: [
+                  const Text('이미지 포함'),
+                  Switch(value: filterWithImages, onChanged: (val) => setState(() => filterWithImages = val)),
+                ],
+              ),
             ],
           ),
           Expanded(
-            child: filteredList.isEmpty
-                ? const Center(child: Text('문의 내역이 없습니다.'))
-                : ListView.builder(
+            child: ListView.builder(
               itemCount: filteredList.length,
               itemBuilder: (context, index) {
                 final inquiry = filteredList[index];
+                final hasImages = (inquiry['images'] as List).isNotEmpty;
                 return Card(
-                  margin: const EdgeInsets.all(8.0),
-                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                   child: ListTile(
                     leading: IconButton(
                       icon: Icon(
-                        inquiry['favorite'] == true ? Icons.star : Icons.star_border,
-                        color: inquiry['favorite'] == true ? Colors.amber : Colors.grey,
+                        inquiry['favorite'] ? Icons.star : Icons.star_border,
+                        color: inquiry['favorite'] ? Colors.amber : null,
                       ),
                       onPressed: () => toggleFavorite(inquiry['id']),
                     ),
-                    title: Text(inquiry['title']),
+                    title: Text(inquiry['title'], maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(inquiry['content']),
-                        TextField(
-                          decoration: const InputDecoration(labelText: '메모'),
-                          controller: TextEditingController(text: inquiry['memo']),
-                          onChanged: (val) {
-                            inquiry['memo'] = val;
-                            saveInquiries();
-                          },
-                        ),
-                        Text('카테고리: ${inquiry['category']} | 상태: ${inquiry['status']}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                        Text('날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}', style: const TextStyle(fontSize: 12)),
-                        if (inquiry['images'] != null && inquiry['images'].isNotEmpty)
-                          SizedBox(
-                            height: 80,
-                            child: ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: (inquiry['images'] as List<String>).map((path) => Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: GestureDetector(
-                                  onTap: () => showDialog(context: context, builder: (_) => Dialog(child: Image.file(File(path)))),
-                                  child: Image.file(File(path), width: 80, height: 80, fit: BoxFit.cover),
-                                ),
-                              )).toList(),
+                        Text('카테고리: ${inquiry['category']}'),
+                        Text('상태: ${inquiry['status']}'),
+                        Text('날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}'),
+                        if (hasImages) const Icon(Icons.image, size: 16),
+                      ],
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => deleteInquiry(inquiry['id']),
+                    ),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: Text(inquiry['title']),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('내용:\n${inquiry['content']}\n'),
+                                Text('카테고리: ${inquiry['category']}'),
+                                Text('상태: ${inquiry['status']}'),
+                                Text('날짜: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}'),
+                                if (hasImages)
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 8),
+                                      const Text('첨부 이미지:'),
+                                      const SizedBox(height: 4),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: (inquiry['images'] as List<String>)
+                                            .map((imgPath) => Image.file(File(imgPath), width: 80, height: 80, fit: BoxFit.cover))
+                                            .toList(),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
-                          )
-                      ],
-                    ),
-                    trailing: Column(
-                      children: [
-                        DropdownButton<String>(
-                          value: inquiry['status'],
-                          onChanged: (val) => updateStatus(inquiry['id'], val!),
-                          items: ['대기', '진행중', '완료']
-                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                              .toList(),
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
+                            TextButton(
+                              onPressed: () {
+                                final newStatus = inquiry['status'] == '대기'
+                                    ? '진행중'
+                                    : (inquiry['status'] == '진행중' ? '완료' : '대기');
+                                updateStatus(inquiry['id'], newStatus);
+                                Navigator.pop(context);
+                              },
+                              child: const Text('상태 변경'),
+                            ),
+                          ],
                         ),
-                        IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => deleteInquiry(inquiry['id'])),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 );
               },
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showInquiryDialog(),
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  void _showInquiryDialog() {
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-    String selectedCategory = '일반 문의';
-    List<String> selectedImages = [];
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('문의하기'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: titleController, decoration: const InputDecoration(labelText: '제목')),
-                TextField(controller: contentController, decoration: const InputDecoration(labelText: '내용')),
-                DropdownButton<String>(
-                  value: selectedCategory,
-                  items: ['일반 문의', '주문', '배송', '환불', '기타']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) => setStateDialog(() => selectedCategory = value!),
-                ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.image),
-                  label: const Text('이미지 선택'),
-                  onPressed: () async {
-                    final imgs = await pickImages();
-                    setStateDialog(() => selectedImages = imgs);
-                  },
-                ),
-                Wrap(
-                  spacing: 5,
-                  children: selectedImages.map((e) => Image.file(File(e), width: 50, height: 50)).toList(),
-                )
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
-            TextButton(
-              onPressed: () {
-                addInquiry(titleController.text, contentController.text, selectedCategory, selectedImages);
-                Navigator.pop(context);
-              },
-              child: const Text('등록'),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -332,22 +341,19 @@ class InquirySearchDelegate extends SearchDelegate {
   InquirySearchDelegate(this.inquiries);
 
   @override
-  List<Widget>? buildActions(BuildContext context) => [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
+  List<Widget>? buildActions(BuildContext context) =>
+      [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
 
   @override
-  Widget? buildLeading(BuildContext context) => IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, null));
+  Widget? buildLeading(BuildContext context) =>
+      IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, null));
 
   @override
   Widget buildResults(BuildContext context) => Container();
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final results = inquiries.where((inq) =>
-    inq['title'].toLowerCase().contains(query.toLowerCase()) ||
-        inq['content'].toLowerCase().contains(query.toLowerCase()) ||
-        inq['category'].toLowerCase().contains(query.toLowerCase())
-    ).toList();
-
+    final results = inquiries.where((inq) => inq['title'].toLowerCase().contains(query.toLowerCase())).toList();
     return ListView(
       children: results.map((inq) => ListTile(title: Text(inq['title']))).toList(),
     );
