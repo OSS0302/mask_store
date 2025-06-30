@@ -33,7 +33,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     if (inquiriesJson != null) {
       setState(() {
         inquiryList =
-            List<Map<String, dynamic>>.from(json.decode(inquiriesJson));
+        List<Map<String, dynamic>>.from(json.decode(inquiriesJson));
         sortInquiries();
       });
     }
@@ -47,7 +47,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   String recommendCategoryByAI(String content) {
     final lower = content.toLowerCase();
     if (lower.contains('주문') || lower.contains('order')) return '주문';
-    if (lower.contains('배송') || lower.contains('배송')) return '배송';
+    if (lower.contains('배송') || lower.contains('delivery')) return '배송';
     if (lower.contains('환불') || lower.contains('refund')) return '환불';
     if (lower.contains('기타')) return '기타';
     return '일반 문의';
@@ -81,8 +81,8 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
       'timestamp': DateTime.now().toIso8601String(),
       'status': '대기중',
       'favorite': false,
-      'memo': '', // 메모는 빈 상태
-      'replyTemplate': suggestReplyTemplate(content), // AI 답변 템플릿 추가
+      'memo': '',
+      'replyTemplate': suggestReplyTemplate(content),
     };
     setState(() {
       inquiryList.add(newInquiry);
@@ -103,7 +103,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
       final index = inquiryList.indexWhere((inq) => inq['id'] == id);
       if (index != -1) {
         inquiryList[index]['favorite'] =
-            !(inquiryList[index]['favorite'] ?? false);
+        !(inquiryList[index]['favorite'] ?? false);
       }
     });
     saveInquiries();
@@ -123,14 +123,14 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     List<List<dynamic>> rows = [
       ['ID', '제목', '내용', '카테고리', '상태', '등록일', '메모'],
       ...inquiryList.map((e) => [
-            e['id'],
-            e['title'],
-            e['content'],
-            e['category'],
-            e['status'],
-            e['timestamp'],
-            e['memo'] ?? '',
-          ])
+        e['id'],
+        e['title'],
+        e['content'],
+        e['category'],
+        e['status'],
+        e['timestamp'],
+        e['memo'] ?? '',
+      ])
     ];
 
     String csv = const ListToCsvConverter().convert(rows);
@@ -153,14 +153,14 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
             headers: ['제목', '내용', '카테고리', '상태', '등록일', '메모'],
             data: inquiryList
                 .map((e) => [
-                      e['title'],
-                      e['content'],
-                      e['category'],
-                      e['status'],
-                      DateFormat('yyyy-MM-dd HH:mm')
-                          .format(DateTime.parse(e['timestamp'])),
-                      e['memo'] ?? '',
-                    ])
+              e['title'],
+              e['content'],
+              e['category'],
+              e['status'],
+              DateFormat('yyyy-MM-dd HH:mm')
+                  .format(DateTime.parse(e['timestamp'])),
+              e['memo'] ?? '',
+            ])
                 .toList(),
           )
         ],
@@ -185,8 +185,16 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
     Map<String, int> statusCounts = {
       '대기중': inquiryList.where((e) => e['status'] == '대기중').length,
-      '처리중': inquiryList.where((e) => e['처리중']).length,
+      '처리중': inquiryList.where((e) => e['status'] == '처리중').length,
       '완료': inquiryList.where((e) => e['status'] == '완료').length,
+    };
+
+    Map<String, int> categoryCounts = {
+      '일반 문의': inquiryList.where((e) => e['category'] == '일반 문의').length,
+      '주문': inquiryList.where((e) => e['category'] == '주문').length,
+      '배송': inquiryList.where((e) => e['category'] == '배송').length,
+      '환불': inquiryList.where((e) => e['category'] == '환불').length,
+      '기타': inquiryList.where((e) => e['category'] == '기타').length,
     };
 
     return Scaffold(
@@ -214,7 +222,6 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
       ),
       body: Column(
         children: [
-          // 필터 및 정렬 옵션
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             child: Row(
@@ -261,77 +268,88 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
             ),
           ),
 
-          // 상태별 문의 개수 표시
-
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Text(
-              '대기중: ${statusCounts['대기중']}  |  처리중: ${statusCounts['처리중']}  |  완료: ${statusCounts['완료']}',
+              '대기중: ${statusCounts['대기중']} | 처리중: ${statusCounts['처리중']} | 완료: ${statusCounts['완료']}',
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: categoryCounts.entries
+                  .map((entry) => Chip(
+                label: Text('${entry.key}: ${entry.value}'),
+                backgroundColor: Colors.grey.shade200,
+              ))
+                  .toList(),
+            ),
+          ),
+
           Expanded(
             child: filteredList.isEmpty
                 ? const Center(child: Text('문의 내역이 없습니다.'))
                 : ListView.builder(
-                    itemCount: filteredList.length,
-                    itemBuilder: (context, index) {
-                      final inquiry = filteredList[index];
-                      return Card(
-                        margin: const EdgeInsets.all(8.0),
-                        elevation: 3,
-                        child: ListTile(
-                          title: Text(inquiry['title']),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // AI 요약 보여주기
-                              Text(summarizeContentAI(inquiry['content'])),
-                              const SizedBox(height: 5),
-                              Text(
-                                '카테고리: ${inquiry['category']} | 상태: ${inquiry['status']} 등록일: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}',
-                                style: TextStyle(
-                                    color: Colors.grey.shade600, fontSize: 12),
-                              ),
-                              if ((inquiry['memo'] ?? '').isNotEmpty)
-                                Text('메모: ${inquiry['memo']}',
-                                    style: const TextStyle(
-                                        fontStyle: FontStyle.italic)),
-                              const SizedBox(height: 5),
-                              // AI 답변 템플릿 보여주기
-                              Text(
-                                '추천 답변: ${inquiry['replyTemplate']}',
-                                style: TextStyle(
-                                    color: Colors.blueGrey.shade700,
-                                    fontSize: 12,
-                                    fontStyle: FontStyle.italic),
-                              ),
-                            ],
-                          ),
-                          trailing: Wrap(
-                            spacing: 8,
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  inquiry['favorite'] == true
-                                      ? Icons.star
-                                      : Icons.star_border,
-                                  color: Colors.orange,
-                                ),
-                                onPressed: () => toggleFavorite(inquiry['id']),
-                              ),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => deleteInquiry(inquiry['id']),
-                              ),
-                            ],
-                          ),
-                          onTap: () => _showInquiryDetail(inquiry),
+              itemCount: filteredList.length,
+              itemBuilder: (context, index) {
+                final inquiry = filteredList[index];
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  elevation: 3,
+                  child: ListTile(
+                    title: Text(inquiry['title']),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(summarizeContentAI(inquiry['content'])),
+                        const SizedBox(height: 5),
+                        Text(
+                          '카테고리: ${inquiry['category']} | 상태: ${inquiry['status']} 등록일: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}',
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 12),
                         ),
-                      );
-                    },
+                        if ((inquiry['memo'] ?? '').isNotEmpty)
+                          Text('메모: ${inquiry['memo']}',
+                              style: const TextStyle(
+                                  fontStyle: FontStyle.italic)),
+                        const SizedBox(height: 5),
+                        Text(
+                          '추천 답변: ${inquiry['replyTemplate']}',
+                          style: TextStyle(
+                              color: Colors.blueGrey.shade700,
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                    trailing: Wrap(
+                      spacing: 8,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            inquiry['favorite'] == true
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.orange,
+                          ),
+                          onPressed: () => toggleFavorite(inquiry['id']),
+                        ),
+                        IconButton(
+                          icon:
+                          const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => deleteInquiry(inquiry['id']),
+                        ),
+                      ],
+                    ),
+                    onTap: () => _showInquiryDetail(inquiry),
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
