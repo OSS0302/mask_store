@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart'; // 공유 기능
+
+void main() {
+  runApp(const MaterialApp(home: CustomerSupportScreen()));
+}
 
 class CustomerSupportScreen extends StatefulWidget {
   const CustomerSupportScreen({Key? key}) : super(key: key);
@@ -19,6 +25,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   String searchQuery = '';
   String sortOption = '최신순';
   String statusFilter = '전체';
+  String categoryFilter = '전체';
   bool showFavoritesOnly = false;
 
   @override
@@ -71,8 +78,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     }
   }
 
-  void addInquiry(String title, String content, [String? manualCategory]) {
-    final category = manualCategory ?? recommendCategoryByAI(content);
+  void addInquiry(String title, String content, String category) {
     final newInquiry = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'title': title,
@@ -89,6 +95,19 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
       sortInquiries();
     });
     saveInquiries();
+  }
+
+  void updateInquiry(String id, String title, String content, String category) {
+    final index = inquiryList.indexWhere((inq) => inq['id'] == id);
+    if (index != -1) {
+      setState(() {
+        inquiryList[index]['title'] = title;
+        inquiryList[index]['content'] = content;
+        inquiryList[index]['category'] = category;
+        inquiryList[index]['replyTemplate'] = suggestReplyTemplate(content);
+      });
+      saveInquiries();
+    }
   }
 
   void deleteInquiry(String id) {
@@ -138,8 +157,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     final file = File('${dir.path}/inquiries.csv');
     await file.writeAsString(csv);
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('CSV 파일이 저장되었습니다.')));
+    Share.shareXFiles([XFile(file.path)], text: '고객 문의 CSV 파일');
   }
 
   Future<void> exportToPDF() async {
@@ -171,31 +189,23 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     final file = File('${dir.path}/inquiries.pdf');
     await file.writeAsBytes(await pdf.save());
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('PDF 파일이 저장되었습니다.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF 파일이 저장되었습니다.')));
   }
 
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredList = inquiryList.where((inquiry) {
-      return inquiry['title'].contains(searchQuery) &&
-          (statusFilter == '전체' || inquiry['status'] == statusFilter) &&
-          (!showFavoritesOnly || inquiry['favorite'] == true);
+      final matchesSearch = inquiry['title'].contains(searchQuery) ||
+          inquiry['content'].contains(searchQuery);
+      final matchesStatus = statusFilter == '전체' || inquiry['status'] == statusFilter;
+      final matchesCategory =
+          categoryFilter == '전체' || inquiry['category'] == categoryFilter;
+      final matchesFavorite =
+          !showFavoritesOnly || inquiry['favorite'] == true;
+
+      return matchesSearch && matchesStatus && matchesCategory && matchesFavorite;
     }).toList();
-
-    Map<String, int> statusCounts = {
-      '대기중': inquiryList.where((e) => e['status'] == '대기중').length,
-      '처리중': inquiryList.where((e) => e['status'] == '처리중').length,
-      '완료': inquiryList.where((e) => e['status'] == '완료').length,
-    };
-
-    Map<String, int> categoryCounts = {
-      '일반 문의': inquiryList.where((e) => e['category'] == '일반 문의').length,
-      '주문': inquiryList.where((e) => e['category'] == '주문').length,
-      '배송': inquiryList.where((e) => e['category'] == '배송').length,
-      '환불': inquiryList.where((e) => e['category'] == '환불').length,
-      '기타': inquiryList.where((e) => e['category'] == '기타').length,
-    };
 
     return Scaffold(
       appBar: AppBar(
@@ -203,27 +213,19 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: InquirySearchDelegate(inquiryList),
-              );
-            },
+            onPressed: () => showSearch(
+              context: context,
+              delegate: InquirySearchDelegate(inquiryList),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: exportToCSV,
-          ),
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            onPressed: exportToPDF,
-          ),
+          IconButton(icon: const Icon(Icons.download), onPressed: exportToCSV),
+          IconButton(icon: const Icon(Icons.picture_as_pdf), onPressed: exportToPDF),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -248,9 +250,18 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                       .toList(),
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() {
-                        statusFilter = value;
-                      });
+                      setState(() => statusFilter = value);
+                    }
+                  },
+                ),
+                DropdownButton<String>(
+                  value: categoryFilter,
+                  items: ['전체', '일반 문의', '주문', '배송', '환불', '기타']
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => categoryFilter = value);
                     }
                   },
                 ),
@@ -263,33 +274,10 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                           setState(() => showFavoritesOnly = val),
                     ),
                   ],
-                )
+                ),
               ],
             ),
           ),
-
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              '대기중: ${statusCounts['대기중']} | 처리중: ${statusCounts['처리중']} | 완료: ${statusCounts['완료']}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 4,
-              children: categoryCounts.entries
-                  .map((entry) => Chip(
-                label: Text('${entry.key}: ${entry.value}'),
-                backgroundColor: Colors.grey.shade200,
-              ))
-                  .toList(),
-            ),
-          ),
-
           Expanded(
             child: filteredList.isEmpty
                 ? const Center(child: Text('문의 내역이 없습니다.'))
@@ -339,8 +327,12 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                           onPressed: () => toggleFavorite(inquiry['id']),
                         ),
                         IconButton(
-                          icon:
-                          const Icon(Icons.delete, color: Colors.red),
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _showInquiryDialog(
+                              isEdit: true, inquiry: inquiry),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () => deleteInquiry(inquiry['id']),
                         ),
                       ],
@@ -360,33 +352,26 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     );
   }
 
-  void _showInquiryDialog() {
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-    String selectedCategory = '일반 문의';
+  void _showInquiryDialog({bool isEdit = false, Map<String, dynamic>? inquiry}) {
+    final titleController = TextEditingController(text: inquiry?['title'] ?? '');
+    final contentController = TextEditingController(text: inquiry?['content'] ?? '');
+    String selectedCategory = inquiry?['category'] ?? '일반 문의';
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('문의하기'),
+          title: Text(isEdit ? '문의 수정' : '문의 등록'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: '제목')),
-              TextField(
-                  controller: contentController,
-                  decoration: const InputDecoration(labelText: '내용')),
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: '제목')),
+              TextField(controller: contentController, decoration: const InputDecoration(labelText: '내용')),
               const SizedBox(height: 10),
               ElevatedButton(
                 onPressed: () {
-                  final aiCategory =
-                      recommendCategoryByAI(contentController.text);
-                  setDialogState(() {
-                    selectedCategory = aiCategory;
-                  });
+                  final aiCategory = recommendCategoryByAI(contentController.text);
+                  setDialogState(() => selectedCategory = aiCategory);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('AI 추천 카테고리: $aiCategory')),
                   );
@@ -400,31 +385,30 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                     .toList(),
                 onChanged: (value) {
                   if (value != null) {
-                    setDialogState(() {
-                      selectedCategory = value;
-                    });
+                    setDialogState(() => selectedCategory = value);
                   }
                 },
               ),
             ],
           ),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('취소')),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
             TextButton(
               onPressed: () {
                 if (titleController.text.trim().isEmpty ||
                     contentController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('제목과 내용을 입력해주세요.')));
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(const SnackBar(content: Text('제목과 내용을 입력해주세요.')));
                   return;
                 }
-                addInquiry(titleController.text, contentController.text,
-                    selectedCategory);
+                if (isEdit && inquiry != null) {
+                  updateInquiry(inquiry['id'], titleController.text, contentController.text, selectedCategory);
+                } else {
+                  addInquiry(titleController.text, contentController.text, selectedCategory);
+                }
                 Navigator.pop(context);
               },
-              child: const Text('등록'),
+              child: Text(isEdit ? '수정' : '등록'),
             ),
           ],
         ),
@@ -441,7 +425,6 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         title: Text(inquiry['title']),
         content: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(inquiry['content']),
@@ -471,14 +454,11 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
               const SizedBox(height: 10),
               Text(
                 'AI 추천 답변:\n${inquiry['replyTemplate']}',
-                style: TextStyle(
-                    color: Colors.blueGrey.shade700,
-                    fontStyle: FontStyle.italic),
+                style: TextStyle(color: Colors.blueGrey.shade700, fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 10),
               ElevatedButton(
                 onPressed: () {
-                  // 메모에 AI 답변 템플릿 자동 삽입
                   memoController.text = inquiry['replyTemplate'];
                   setState(() => inquiry['memo'] = inquiry['replyTemplate']);
                   saveInquiries();
@@ -488,10 +468,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
             ],
           ),
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('닫기')),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기'))],
       ),
     );
   }
@@ -507,35 +484,28 @@ class InquirySearchDelegate extends SearchDelegate {
       [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
 
   @override
-  Widget? buildLeading(BuildContext context) => IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => close(context, null),
-      );
+  Widget? buildLeading(BuildContext context) =>
+      IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, null));
 
   @override
   Widget buildResults(BuildContext context) {
-    final results =
-        inquiries.where((inq) => inq['title'].contains(query)).toList();
+    final results = inquiries
+        .where((inq) =>
+    inq['title'].contains(query) || inq['content'].contains(query))
+        .toList();
     return ListView(
-      children: results
-          .map((inq) => ListTile(
-                title: Text(inq['title']),
-                onTap: () {
-                  close(context, null);
-                  // 추가 동작 가능
-                },
-              ))
-          .toList(),
+      children: results.map((inq) => ListTile(title: Text(inq['title']))).toList(),
     );
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final results =
-        inquiries.where((inq) => inq['title'].contains(query)).toList();
+    final results = inquiries
+        .where((inq) =>
+    inq['title'].contains(query) || inq['content'].contains(query))
+        .toList();
     return ListView(
-      children:
-          results.map((inq) => ListTile(title: Text(inq['title']))).toList(),
+      children: results.map((inq) => ListTile(title: Text(inq['title']))).toList(),
     );
   }
 }
