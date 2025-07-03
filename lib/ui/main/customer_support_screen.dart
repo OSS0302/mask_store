@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:share_plus/share_plus.dart'; // 공유 기능
+import 'package:share_plus/share_plus.dart';
 
 void main() {
   runApp(const MaterialApp(home: CustomerSupportScreen()));
@@ -31,7 +30,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
   @override
   void initState() {
     super.initState();
-    fetchInquiries();
+    fetchInquiries().then((_) => checkUnansweredInquiries());
   }
 
   Future<void> fetchInquiries() async {
@@ -89,6 +88,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
       'favorite': false,
       'memo': '',
       'replyTemplate': suggestReplyTemplate(content),
+      'answer': '', // **추가**
     };
     setState(() {
       inquiryList.add(newInquiry);
@@ -140,7 +140,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
   Future<void> exportToCSV() async {
     List<List<dynamic>> rows = [
-      ['ID', '제목', '내용', '카테고리', '상태', '등록일', '메모'],
+      ['ID', '제목', '내용', '카테고리', '상태', '등록일', '메모', '답변'],
       ...inquiryList.map((e) => [
         e['id'],
         e['title'],
@@ -149,6 +149,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         e['status'],
         e['timestamp'],
         e['memo'] ?? '',
+        e['answer'] ?? '',
       ])
     ];
 
@@ -168,7 +169,15 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         build: (context) => [
           pw.Header(level: 0, child: pw.Text('고객 문의 내역')),
           pw.Table.fromTextArray(
-            headers: ['제목', '내용', '카테고리', '상태', '등록일', '메모'],
+            headers: [
+              '제목',
+              '내용',
+              '카테고리',
+              '상태',
+              '등록일',
+              '메모',
+              '답변' // **추가**
+            ],
             data: inquiryList
                 .map((e) => [
               e['title'],
@@ -178,6 +187,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
               DateFormat('yyyy-MM-dd HH:mm')
                   .format(DateTime.parse(e['timestamp'])),
               e['memo'] ?? '',
+              e['answer'] ?? '',
             ])
                 .toList(),
           )
@@ -193,18 +203,38 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         const SnackBar(content: Text('PDF 파일이 저장되었습니다.')));
   }
 
+  void checkUnansweredInquiries() {
+    final now = DateTime.now();
+    for (final inquiry in inquiryList) {
+      final created = DateTime.parse(inquiry['timestamp']);
+      final duration = now.difference(created);
+      if (inquiry['status'] == '대기중' && duration.inHours >= 24) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+            '🚨 24시간 이상 미응답: "${inquiry['title']}" 문의를 확인해주세요.',
+          ),
+          duration: const Duration(seconds: 5),
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredList = inquiryList.where((inquiry) {
       final matchesSearch = inquiry['title'].contains(searchQuery) ||
           inquiry['content'].contains(searchQuery);
-      final matchesStatus = statusFilter == '전체' || inquiry['status'] == statusFilter;
+      final matchesStatus =
+          statusFilter == '전체' || inquiry['status'] == statusFilter;
       final matchesCategory =
           categoryFilter == '전체' || inquiry['category'] == categoryFilter;
       final matchesFavorite =
           !showFavoritesOnly || inquiry['favorite'] == true;
 
-      return matchesSearch && matchesStatus && matchesCategory && matchesFavorite;
+      return matchesSearch &&
+          matchesStatus &&
+          matchesCategory &&
+          matchesFavorite;
     }).toList();
 
     return Scaffold(
@@ -219,7 +249,9 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
             ),
           ),
           IconButton(icon: const Icon(Icons.download), onPressed: exportToCSV),
-          IconButton(icon: const Icon(Icons.picture_as_pdf), onPressed: exportToPDF),
+          IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              onPressed: exportToPDF),
         ],
       ),
       body: Column(
@@ -296,13 +328,19 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                         Text(summarizeContentAI(inquiry['content'])),
                         const SizedBox(height: 5),
                         Text(
-                          '카테고리: ${inquiry['category']} | 상태: ${inquiry['status']} 등록일: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}',
+                          '카테고리: ${inquiry['category']} | 상태: ${inquiry['status']} | 등록일: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(inquiry['timestamp']))}',
                           style: TextStyle(
                               color: Colors.grey.shade600, fontSize: 12),
                         ),
                         if ((inquiry['memo'] ?? '').isNotEmpty)
                           Text('메모: ${inquiry['memo']}',
                               style: const TextStyle(
+                                  fontStyle: FontStyle.italic)),
+                        if ((inquiry['answer'] ?? '').isNotEmpty)
+                          Text('답변: ${inquiry['answer']}',
+                              style: TextStyle(
+                                  color: Colors.green.shade700,
+                                  fontSize: 12,
                                   fontStyle: FontStyle.italic)),
                         const SizedBox(height: 5),
                         Text(
@@ -352,7 +390,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     );
   }
 
-  void _showInquiryDialog({bool isEdit = false, Map<String, dynamic>? inquiry}) {
+  void _showInquiryDialog({bool isEdit = false, Map<String?, dynamic>? inquiry}) {
     final titleController = TextEditingController(text: inquiry?['title'] ?? '');
     final contentController = TextEditingController(text: inquiry?['content'] ?? '');
     String selectedCategory = inquiry?['category'] ?? '일반 문의';
@@ -397,8 +435,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
               onPressed: () {
                 if (titleController.text.trim().isEmpty ||
                     contentController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(content: Text('제목과 내용을 입력해주세요.')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('제목과 내용을 입력해주세요.')));
                   return;
                 }
                 if (isEdit && inquiry != null) {
@@ -418,6 +455,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
   void _showInquiryDetail(Map<String, dynamic> inquiry) {
     final memoController = TextEditingController(text: inquiry['memo'] ?? '');
+    final answerController = TextEditingController(text: inquiry['answer'] ?? ''); // **추가**
 
     showDialog(
       context: context,
@@ -438,6 +476,16 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
                   saveInquiries();
                 },
               ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: answerController,
+                maxLines: 4,
+                decoration: const InputDecoration(labelText: '답변'),
+                onChanged: (val) {
+                  setState(() => inquiry['answer'] = val);
+                  saveInquiries();
+                },
+              ), // **추가**
               const SizedBox(height: 10),
               DropdownButton<String>(
                 value: inquiry['status'],
@@ -460,10 +508,13 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
               ElevatedButton(
                 onPressed: () {
                   memoController.text = inquiry['replyTemplate'];
-                  setState(() => inquiry['memo'] = inquiry['replyTemplate']);
+                  setState(() {
+                    inquiry['memo'] = inquiry['replyTemplate'];
+                    inquiry['answer'] = inquiry['replyTemplate']; // **추가**
+                  });
                   saveInquiries();
                 },
-                child: const Text('AI 답변 템플릿 메모에 넣기'),
+                child: const Text('AI 답변 템플릿 메모/답변에 넣기'),
               ),
             ],
           ),
@@ -476,7 +527,6 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
 
 class InquirySearchDelegate extends SearchDelegate {
   final List<Map<String, dynamic>> inquiries;
-
   InquirySearchDelegate(this.inquiries);
 
   @override
