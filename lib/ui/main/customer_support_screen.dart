@@ -50,6 +50,24 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
     prefs.setString('inquiries', json.encode(inquiryList));
   }
 
+  void checkUnansweredInquiries() {
+    final now = DateTime.now();
+    for (final inquiry in inquiryList) {
+      final created = DateTime.parse(inquiry['timestamp']);
+      final duration = now.difference(created);
+      if (inquiry['status'] == '대기중' && duration.inHours >= 24) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+            '🚨 24시간 이상 미응답: "${inquiry['title']}" 문의를 확인해주세요.',
+          ),
+          duration: const Duration(seconds: 5),
+        ));
+      }
+    }
+  }
+
+
+
   String recommendCategoryByAI(String content) {
     final lower = content.toLowerCase();
     if (lower.contains('주문') || lower.contains('order')) return '주문';
@@ -203,21 +221,7 @@ class _CustomerSupportScreenState extends State<CustomerSupportScreen> {
         const SnackBar(content: Text('PDF 파일이 저장되었습니다.')));
   }
 
-  void checkUnansweredInquiries() {
-    final now = DateTime.now();
-    for (final inquiry in inquiryList) {
-      final created = DateTime.parse(inquiry['timestamp']);
-      final duration = now.difference(created);
-      if (inquiry['status'] == '대기중' && duration.inHours >= 24) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-            '🚨 24시간 이상 미응답: "${inquiry['title']}" 문의를 확인해주세요.',
-          ),
-          duration: const Duration(seconds: 5),
-        ));
-      }
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
