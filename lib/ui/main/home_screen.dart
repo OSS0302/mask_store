@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -130,6 +131,12 @@ class HomeScreen extends StatelessWidget {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            List<String> recentSearches = [];
+
+            _getRecentSearches().then((value) {
+              setState(() => recentSearches = value);
+            });
+
             return AlertDialog(
               backgroundColor: isDarkMode ? Colors.grey.shade900 : Colors.white,
               title: Text(
@@ -144,7 +151,8 @@ class HomeScreen extends StatelessWidget {
                     onChanged: (value) => setState(() {}),
                     decoration: InputDecoration(
                       hintText: '검색어를 입력하세요',
-                      hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                      hintStyle:
+                      TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
                       filled: true,
                       fillColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
                       border: OutlineInputBorder(
@@ -163,29 +171,59 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (recentSearches.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '최근 검색어',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: recentSearches.map((term) {
+                        return ActionChip(
+                          label: Text(term),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _performSearch(context, term);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ]
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text('취소', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
+                  child:
+                  Text('취소', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
                 ),
                 TextButton(
                   onPressed: () {
                     final searchTerm = searchController.text.trim();
                     Navigator.of(context).pop();
                     if (searchTerm.isNotEmpty) {
+                      _saveSearchTerm(searchTerm);
                       _performSearch(context, searchTerm);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.teal.shade100,
+                          backgroundColor:
+                          isDarkMode ? Colors.grey.shade800 : Colors.teal.shade100,
                           content: const Text('검색어를 입력하세요'),
                         ),
                       );
                     }
                   },
-                  child: Text('검색', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
+                  child:
+                  Text('검색', style: TextStyle(color: isDarkMode ? Colors.white : Colors.teal)),
                 ),
               ],
             );
@@ -197,5 +235,20 @@ class HomeScreen extends StatelessWidget {
 
   void _performSearch(BuildContext context, String searchTerm) {
     context.push('/maskStoreScreen?search=$searchTerm');
+  }
+
+  Future<void> _saveSearchTerm(String term) async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> recent = prefs.getStringList('recentSearches') ?? [];
+    if (!recent.contains(term)) {
+      recent.insert(0, term);
+      if (recent.length > 5) recent.removeLast();
+      await prefs.setStringList('recentSearches', recent);
+    }
+  }
+
+  Future<List<String>> _getRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('recentSearches') ?? [];
   }
 }
