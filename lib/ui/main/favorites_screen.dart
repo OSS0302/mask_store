@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:mask_store/ui/main/mask_store_view_model.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../data/model/mask_store.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -16,7 +19,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedFilter = 'all';
-  String _selectedSort = 'name'; // 'name' or 'distance'
+  String _selectedSort = 'name';
+  String _selectedCategory = 'all';
+  bool _showNearbyOnly = false;
 
   @override
   void didChangeDependencies() {
@@ -31,7 +36,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        vm.clearPlentyAlert(); // 알림 표시 후 초기화
+        vm.clearPlentyAlert();
       });
     }
   }
@@ -41,12 +46,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final maskStoreViewModel = context.watch<MaskStoreViewModel>();
     final isDarkMode = maskStoreViewModel.isDarkMode;
 
-    final favoriteStores = maskStoreViewModel.state.stores
-        .where((store) =>
-    store.isFavorite &&
-        store.storeName.contains(_searchQuery) &&
-        (_selectedFilter == 'all' || store.remainStatus == _selectedFilter))
-        .toList();
+    final favoriteStores = maskStoreViewModel.state.stores.where((store) {
+      final matchesSearch = store.storeName.contains(_searchQuery);
+      final matchesFilter = _selectedFilter == 'all' || store.remainStatus == _selectedFilter;
+      final matchesCategory = _selectedCategory == 'all' || store.category == _selectedCategory;
+      final matchesNearby = !_showNearbyOnly || store.distance <= 1.0;
+      return store.isFavorite && matchesSearch && matchesFilter && matchesCategory && matchesNearby;
+    }).toList();
 
     if (_selectedSort == 'name') {
       favoriteStores.sort((a, b) => a.storeName.compareTo(b.storeName));
@@ -56,13 +62,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '즐겨찾기 약국',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('즐겨찾기 약국', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: isDarkMode ? Colors.black : Colors.teal.shade300,
         elevation: 0,
@@ -79,19 +79,24 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
           if (favoriteStores.isNotEmpty)
             IconButton(
+              icon: const Icon(Icons.save, color: Colors.white),
+              onPressed: () => _exportFavorites(favoriteStores),
+            ),
+          IconButton(
+            icon: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode, color: Colors.white),
+            onPressed: () => maskStoreViewModel.toggleDarkMode(),
+          ),
+          if (favoriteStores.isNotEmpty)
+            IconButton(
               icon: const Icon(Icons.delete, color: Colors.white),
-              onPressed: () {
-                _clearFavorites(context);
-              },
+              onPressed: () => _clearFavorites(context),
             ),
         ],
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: isDarkMode
-                ? [Colors.black87, Colors.grey.shade900]
-                : [Colors.teal.shade100, Colors.teal.shade50],
+            colors: isDarkMode ? [Colors.black87, Colors.grey.shade900] : [Colors.teal.shade100, Colors.teal.shade50],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -102,23 +107,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               padding: const EdgeInsets.all(16.0),
               child: TextField(
                 controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _searchQuery = value),
                 decoration: InputDecoration(
                   hintText: '약국 이름 검색',
                   prefixIcon: const Icon(Icons.search, color: Colors.teal),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                     icon: const Icon(Icons.clear, color: Colors.teal),
-                    onPressed: () {
-                      setState(() {
-                        _searchController.clear();
-                        _searchQuery = '';
-                      });
-                    },
+                    onPressed: () => setState(() {
+                      _searchController.clear();
+                      _searchQuery = '';
+                    }),
                   )
                       : null,
                   filled: true,
@@ -127,8 +126,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none,
                   ),
-                  hintStyle:
-                  TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
+                  hintStyle: TextStyle(color: isDarkMode ? Colors.grey : Colors.black54),
                 ),
               ),
             ),
@@ -136,21 +134,48 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('정렬:', style: TextStyle(fontSize: 16)),
+                  Row(
+                    children: [
+                      const Text('정렬:', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 10),
+                      DropdownButton<String>(
+                        value: _selectedSort,
+                        onChanged: (value) => setState(() => _selectedSort = value ?? 'name'),
+                        items: const [
+                          DropdownMenuItem(value: 'name', child: Text('이름순')),
+                          DropdownMenuItem(value: 'distance', child: Text('거리순')),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Text('1km 이내'),
+                      Switch(
+                        value: _showNearbyOnly,
+                        onChanged: (val) => setState(() => _showNearbyOnly = val),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Text('카테고리:', style: TextStyle(fontSize: 16)),
                   const SizedBox(width: 10),
                   DropdownButton<String>(
-                    value: _selectedSort,
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedSort = value;
-                        });
-                      }
-                    },
+                    value: _selectedCategory,
+                    onChanged: (value) => setState(() => _selectedCategory = value ?? 'all'),
                     items: const [
-                      DropdownMenuItem(value: 'name', child: Text('이름순')),
-                      DropdownMenuItem(value: 'distance', child: Text('거리순')),
+                      DropdownMenuItem(value: 'all', child: Text('전체')),
+                      DropdownMenuItem(value: 'pharmacy', child: Text('약국')),
+                      DropdownMenuItem(value: 'hospital', child: Text('병원')),
+                      DropdownMenuItem(value: 'mart', child: Text('마트')),
                     ],
                   ),
                 ],
@@ -161,8 +186,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   ? _buildEmptyFavorites(isDarkMode)
                   : ListView.builder(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0, vertical: 10.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                 itemCount: favoriteStores.length,
                 itemBuilder: (context, index) {
                   final store = favoriteStores[index];
@@ -175,9 +199,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       color: Colors.red,
                       child: const Icon(Icons.delete, color: Colors.white),
                     ),
-                    onDismissed: (_) {
-                      context.read<MaskStoreViewModel>().toggleFavorite(store);
-                    },
+                    onDismissed: (_) => context.read<MaskStoreViewModel>().toggleFavorite(store),
                     child: _buildStoreCard(store, context, isDarkMode),
                   );
                 },
@@ -209,11 +231,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             child: ChoiceChip(
               label: Text(filterLabels[filter] ?? filter),
               selected: _selectedFilter == filter,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedFilter = filter;
-                });
-              },
+              onSelected: (selected) => setState(() => _selectedFilter = filter),
               selectedColor: Colors.teal.shade300,
               backgroundColor: Colors.grey.shade300,
             ),
@@ -223,132 +241,74 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildEmptyFavorites(bool isDarkMode) {
-    return Center(
+  Widget _buildEmptyFavorites(bool isDarkMode) => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.favorite_border, color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400, size: 100),
+        const SizedBox(height: 16),
+        Text(
+          '즐겨찾기 한 약국이 없습니다.',
+          style: TextStyle(fontSize: 20, color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade600, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildStoreCard(MaskStore store, BuildContext context, bool isDarkMode) => GestureDetector(
+    onTap: () => Navigator.pushNamed(context, '/storeDetail', arguments: store),
+    child: Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 6,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.favorite_border,
-            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
-            size: 100,
+          ClipRRect(
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+            child: SizedBox(
+              width: double.infinity,
+              height: 180,
+              child: Image.network(
+                store.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.error, size: 50, color: Colors.red),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            '즐겨찾기 한 약국이 없습니다.',
-            style: TextStyle(
-              fontSize: 20,
-              color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade600,
-              fontWeight: FontWeight.w600,
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(store.storeName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, color: Colors.teal.shade300),
+                    const SizedBox(width: 4),
+                    Text('${store.distance.toStringAsFixed(2)} km', style: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatusChip(store.remainStatus),
+                    IconButton(
+                      icon: Icon(store.isFavorite ? Icons.favorite : Icons.favorite_border, color: store.isFavorite ? Colors.red : (isDarkMode ? Colors.grey.shade400 : Colors.grey)),
+                      onPressed: () => context.read<MaskStoreViewModel>().toggleFavorite(store),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStoreCard(MaskStore store, BuildContext context, bool isDarkMode) {
-    return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${store.storeName} 클릭됨')),
-        );
-      },
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 6,
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 180,
-                child: Image.network(
-                  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRK0ZkGuGa63hz6IGaxDNfhOHR4VK3Y7wkAIjsTeEYTycSq9xBzvjfAH7E&s',
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                            (loadingProgress.expectedTotalBytes ?? 1)
-                            : null,
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.error, size: 50, color: Colors.red);
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    store.storeName,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, color: Colors.teal.shade300),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${store.distance.toStringAsFixed(2)} km',
-                        style: TextStyle(
-                            color: isDarkMode
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatusChip(store.remainStatus),
-                      IconButton(
-                        icon: Icon(
-                          store.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: store.isFavorite
-                              ? Colors.red
-                              : (isDarkMode
-                              ? Colors.grey.shade400
-                              : Colors.grey),
-                        ),
-                        onPressed: () {
-                          context.read<MaskStoreViewModel>().toggleFavorite(store);
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
 
   Widget _buildStatusChip(String status) {
     Color color;
@@ -388,10 +348,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         title: const Text('즐겨찾기 초기화'),
         content: const Text('모든 즐겨찾기를 비우시겠습니까?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('취소'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('취소')),
           TextButton(
             onPressed: () {
               context.read<MaskStoreViewModel>().clearFavorites();
@@ -405,22 +362,36 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   void _shareFavorites(List<MaskStore> stores) {
-    final storeList = stores.map((store) =>
-    '- ${store.storeName} (${store.distance.toStringAsFixed(2)} km)').join('\n');
-
+    final storeList = stores.map((store) => '- ${store.storeName} (${store.distance.toStringAsFixed(2)} km)').join('\n');
     Share.share('내 즐겨찾기 약국 목록:\n\n$storeList');
   }
 
   void _openInMap(List<MaskStore> stores) async {
     if (stores.isEmpty) return;
-
-    final firstStore = stores.first;
-    final url = 'https://www.google.com/maps/search/?api=1&query=${firstStore.latitude},${firstStore.longitude}';
-
+    final store = stores.first;
+    final url = 'https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}';
     if (await canLaunch(url)) {
       await launch(url);
     } else {
       throw '지도를 열 수 없습니다: $url';
+    }
+  }
+
+  Future<void> _exportFavorites(List<MaskStore> stores) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/favorites.txt');
+      final content = stores.map((s) => '${s.storeName} (${s.distance.toStringAsFixed(2)} km)').join('\n');
+      await file.writeAsString(content);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('즐겨찾기 파일을 내보냈습니다.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('파일 저장 실패')),
+      );
     }
   }
 }
