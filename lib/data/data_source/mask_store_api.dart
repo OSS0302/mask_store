@@ -20,7 +20,7 @@ class MaskStoreApi {
       latitude: e['lat'] as double,
       longitude: e['lng'] as double,
       openAt: DateTime.tryParse(e['open_at'] ?? ''),
-      closeAt: DateTime.tryParse(e['close_at'] ?? ''),
+      closeAt: DateTime.tryParse(e['close_at'] ?? ''), category: '', imageUrl: '',
     ))
         .toList();
   }

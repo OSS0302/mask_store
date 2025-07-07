@@ -1,7 +1,7 @@
 class MaskStore {
   final String storeName;
   final String address;
-   double distance;
+  double distance;
   final String remainStatus;
   final double latitude;
   final double longitude;
@@ -9,6 +9,8 @@ class MaskStore {
   String previousRemainStatus;
   DateTime? openAt;
   DateTime? closeAt;
+  final String category;
+  final String imageUrl;
 
   MaskStore({
     required this.storeName,
@@ -21,18 +23,22 @@ class MaskStore {
     this.previousRemainStatus = '',
     required this.openAt,
     required this.closeAt,
+    required this.category,
+    required this.imageUrl,
   });
 
-  // 예: JSON에서 받아올 때
   factory MaskStore.fromJson(Map<String, dynamic> json) {
     return MaskStore(
       storeName: json['storeName'],
+      address: json['address'] ?? '',
+      distance: 0.0,
+      remainStatus: json['remainStatus'],
       latitude: json['latitude'],
       longitude: json['longitude'],
-      distance: 0.0, // 초기값
-      remainStatus: json['remainStatus'],
-      openAt: DateTime.parse(json['openAt']),
-      closeAt: DateTime.parse(json['closeAt']), address: '',
+      openAt: json['openAt'] != null ? DateTime.parse(json['openAt']) : null,
+      closeAt: json['closeAt'] != null ? DateTime.parse(json['closeAt']) : null,
+      category: json['category'] ?? '기타',
+      imageUrl: json['imageUrl'] ?? '',
     );
   }
 
@@ -40,4 +46,3 @@ class MaskStore {
     isFavorite = !isFavorite;
   }
 }
-
